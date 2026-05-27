@@ -19,12 +19,14 @@ impl TrayIconState {
         Self(Arc::new(app.clone()))
     }
 
-    /// 更新菜单栏显示（创建新的，旧的会自动替换）
+    /// 更新菜单栏显示（移除旧的，创建新的）
     pub fn update_tray(&self, title: &str) {
         let app = self.0.clone();
 
+        // 移除所有旧的 tray icons
+        let _ = app.remove_tray_by_id("main-tray");
+
         // 创建新的 tray icon（带新标题）
-        // 注意：Tauri 2 会自动替换相同 ID 的 tray icon
         if let Err(e) = self.create_tray_icon(&app, title) {
             eprintln!("Failed to create tray icon: {}", e);
         }
@@ -48,12 +50,13 @@ impl TrayIconState {
         let menu = Menu::with_items(app, &[&show_item, &hide_item, &sep1, &quit_item])
             .map_err(|e| e.to_string())?;
 
+        // 创建tray icon - Tauri 2的API
         let _tray = TrayIconBuilder::new()
             .menu(&menu)
             .menu_on_left_click(false)
             .title(title)
             .build(app)
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| format!("Failed to create tray icon: {}", e))?;
 
         // 重新绑定事件监听器
         let app_handle = app.clone();

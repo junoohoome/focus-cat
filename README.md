@@ -33,7 +33,19 @@
 
 ### 🎯 应用截图
 
-> 📷 待补充：请添加应用截图，展示主要功能界面
+<div align="center">
+  <img src="public/screenshots/home.png" alt="主界面 - 计时器" width="800"/>
+  <p><em>主界面 - 番茄钟计时器</em></p>
+  
+  <img src="public/screenshots/task.png" alt="任务管理" width="800"/>
+  <p><em>任务管理 - 为每个任务设置番茄目标</em></p>
+  
+  <img src="public/screenshots/cat.png" alt="猫咪养成" width="800"/>
+  <p><em>猫咪养成 - 看着你的虚拟猫咪成长</em></p>
+  
+  <img src="public/screenshots/stats.png" alt="数据统计" width="800"/>
+  <p><em>数据统计 - 可视化你的专注记录</em></p>
+</div>
 
 ### 🛠️ 技术栈
 
@@ -194,7 +206,19 @@ npm run tauri build
 
 ### 🎯 Screenshots
 
-> 📷 Coming soon: Add screenshots to showcase main features
+<div align="center">
+  <img src="public/screenshots/home.png" alt="Main Interface - Timer" width="800"/>
+  <p><em>Main Interface - Pomodoro Timer</em></p>
+  
+  <img src="public/screenshots/task.png" alt="Task Management" width="800"/>
+  <p><em>Task Management - Set pomodoro goals for each task</em></p>
+  
+  <img src="public/screenshots/cat.png" alt="Cat Growth" width="800"/>
+  <p><em>Cat Growth - Watch your virtual cat evolve</em></p>
+  
+  <img src="public/screenshots/stats.png" alt="Statistics" width="800"/>
+  <p><em>Statistics - Visualize your focus records</em></p>
+</div>
 
 ### 🛠️ Tech Stack
 

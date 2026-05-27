@@ -2,133 +2,201 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
+## 项目概述
 
-This is **番茄专注猫** (Pomodoro Cat) - a cross-platform desktop Pomodoro timer application built with:
-- **Frontend**: React 19 + TypeScript + Tailwind CSS v4
-- **Backend**: Tauri 2 + Rust
-- **Database**: SQLite (via rusqlite in Rust, with Drizzle ORM for type definitions)
-- **State Management**: Zustand
+这是**番茄专注猫** (Pomodoro Cat) - 一个从微信小程序转换而来的跨平台桌面番茄钟应用，技术栈：
+- **前端**: React 19 + TypeScript + Tailwind CSS v4
+- **后端**: Tauri 2 + Rust
+- **数据库**: SQLite (via rusqlite)
+- **状态管理**: Zustand
+- **路由**: React Router
 
-## Common Commands
+应用通过虚拟猫咪成长的机制来游戏化生产力，用户完成番茄钟后猫咪会升级。
 
-### Development
+## 常用命令
+
+### 开发
 ```bash
-npm run dev          # Start Vite dev server (port 1420)
-npm run tauri dev    # Start Tauri dev mode (runs both frontend and Rust)
-npm run build        # TypeScript check + Vite build
-npm run tauri build  # Build production Tauri app
-npm run preview      # Preview Vite build
+npm run dev          # 启动 Vite 开发服务器 (端口 1420)
+npm run tauri dev    # 启动 Tauri 开发模式 (同时运行前端和 Rust)
+npm run build        # TypeScript 检查 + Vite 生产构建
+npm run tauri build  # 构建生产版 Tauri 应用包
+npm run preview      # 预览生产版 Vite 构建
 ```
 
-### Rust-specific
+### PATH 设置 (Tauri 必需)
+```bash
+export PATH="$HOME/.cargo/bin:$PATH"
+```
+
+### 图标生成
+```bash
+cd src-tauri && npx @tauri-apps/cli icon ../public/logo.png
+```
+
+### Rust 相关
 ```bash
 cd src-tauri
-cargo build          # Build Rust code
-cargo test           # Run Rust tests
-cargo clippy         # Lint Rust code
+cargo build          # 编译 Rust 代码
+cargo test           # 运行 Rust 测试
+cargo clippy         # 代码检查
+cargo clean          # 清理构建产物（排查问题时有用）
 ```
 
-## Architecture
+## 架构
 
-### Project Structure
+### 项目结构
 ```
 pomodoro-cat-tauri/
-├── src/                      # React frontend
-│   ├── pages/               # Page components (Timer, Tasks, Cat, Stats, Settings)
-│   ├── stores/              # Zustand state stores
-│   ├── lib/                 # Utilities (db schema, utils)
-│   ├── types/               # TypeScript type definitions
-│   ├── App.tsx              # Main layout with sidebar navigation
-│   └── main.tsx             # React Router setup
-├── src-tauri/               # Rust backend
+├── src/                      # React 前端
+│   ├── pages/               # 页面组件 (Timer, Tasks, Cat, Stats, Settings)
+│   ├── stores/              # Zustand 状态管理
+│   ├── lib/                 # 工具 (数据库 schema, 工具函数)
+│   ├── types/               # TypeScript 类型定义
+│   ├── App.tsx              # 主布局（左侧边栏导航）
+│   └── main.tsx             # React Router 配置
+├── src-tauri/               # Rust 后端
 │   ├── src/
-│   │   ├── main.rs         # Entry point (calls lib.rs)
-│   │   ├── lib.rs          # Tauri app setup, command registration
-│   │   ├── db.rs           # Database schema + connection management
-│   │   └── commands.rs     # Tauri commands (business logic)
-│   ├── Cargo.toml          # Rust dependencies
-│   └── tauri.conf.json     # Tauri configuration
+│   │   ├── main.rs         # 入口文件 (调用 lib.rs)
+│   │   ├── lib.rs          # Tauri 应用设置、macOS 菜单栏图标、命令注册
+│   │   ├── db.rs           # 数据库 schema + 连接管理
+│   │   └── commands.rs     # Tauri 命令（业务逻辑）
+│   ├── Cargo.toml          # Rust 依赖
+│   └── tauri.conf.json     # Tauri 配置
 └── package.json
 ```
 
-### Frontend-Backend Communication
+### 前后端通信
 
-**Tauri Commands**: All data operations go through Tauri commands defined in `src-tauri/src/commands.rs`:
-- Task CRUD: `get_tasks`, `create_task`, `update_task`, `delete_task`
-- Config: `get_user_config`, `update_user_config`
-- Records: `record_pomodoro`, `get_stats`, `clear_pomodoro_records`
-- State: `get_state`, `set_state`
+**Tauri 命令模式**: 所有数据操作通过 `src-tauri/src/commands.rs` 中定义的 Tauri 命令：
 
-**Pattern**: Frontend stores call `invoke()` from `@tauri-apps/api/core` to execute Rust commands.
+| 领域 | 命令 |
+|------|------|
+| 任务 | `get_tasks`, `create_task`, `update_task`, `delete_task` |
+| 配置 | `get_user_config`, `update_user_config` |
+| 记录 | `record_pomodoro`, `get_stats`, `clear_pomodoro_records` |
+| 状态 | `get_state`, `set_state` |
+| 菜单栏 (macOS) | `update_tray_title` |
 
-### Data Flow
-1. Frontend stores (`stores/`) call Tauri commands via `invoke()`
-2. Rust commands in `commands.rs` use the global `DbConnection` from `lib.rs`
-3. Database operations use raw SQL via `rusqlite`
-4. Results are serialized (camelCase) and returned to frontend
-5. Frontend Zustand stores update and components re-render
+**注册方式**: 命令在 `src-tauri/src/lib.rs` 中通过 `tauri::generate_handler![]` 宏注册。
 
-### State Management (Zustand Stores)
-- `timerStore`: Timer state (idle/running/paused), remaining time, test mode
-- `taskStore`: Active/completed tasks, pagination, CRUD operations
-- `userStore`: User configuration and preferences
-- `testModeStore`: Test mode toggle for development
+**调用方式**: 前端 stores 通过 `@tauri-apps/api/core` 的 `invoke()` 执行 Rust 命令。
 
-### Database Schema (Defined in Two Places)
-- **Rust**: `src-tauri/src/db.rs` - actual table creation, SQL queries
-- **TypeScript**: `src/lib/db/schema.ts` - Drizzle ORM definitions for type inference
+### 数据流
+1. 前端 stores (`stores/`) 通过 `invoke()` 调用 Tauri 命令
+2. Rust 命令在 `commands.rs` 中获取全局 `DbConnection` 的锁
+3. 数据库操作通过 `rusqlite` 使用原生 SQL
+4. 结果通过 `#[serde(rename_all = "camelCase")]` 序列化为 JS 兼容格式
+5. 前端 Zustand stores 更新状态，组件重新渲染
 
-**Tables**:
-- `tasks`: User tasks with pomodoro targets, priorities, deadlines
-- `user_config`: Single-row config (focus/break duration, notifications, theme)
-- `pomodoro_records`: Focus session history
-- `app_state`: Key-value store for app persistence
+### 状态管理 (Zustand Stores)
 
-### Routing
-React Router with nested routes under `<App />` (sidebar layout):
-- `/` or `/timer` - Main timer page
-- `/tasks` - Task management
-- `/cat` - Cat/tamagotchi page
-- `/stats` - Statistics with charts
-- `/settings` - User settings
+| Store | 用途 |
+|-------|------|
+| `timerStore` | 计时器状态 (idle/running/paused)、剩余时间、测试模式开关 |
+| `taskStore` | 进行中/已完成任务、分页、CRUD 操作 |
+| `userStore` | 用户配置、统计数据、猫咪等级计算 |
+| `testModeStore` | 测试模式开关 (开发用，1分钟 vs 25分钟) |
 
-### Type Safety
-- TypeScript types mirror Rust structs (defined in `src/types/index.ts`)
-- Rust uses `#[serde(rename_all = "camelCase")]` to match JS conventions
-- Drizzle schema infers TypeScript types from database schema
+### 数据库 Schema
 
-### Cat/Tamagotchi System
-The app gamifies productivity with a virtual cat that grows as users complete pomodoros:
-- Users earn "cans" (罐头) for each completed focus session
-- Cat has growth stages (levels) with unlock thresholds
-- Implemented in `stores/userStore.ts` and `pages/Cat.tsx`
+**表结构** (定义在 `src-tauri/src/db.rs`):
+- `tasks`: 用户任务，包含番茄目标、优先级、截止日期
+- `user_config`: 单行配置表 (专注/休息时长、通知、主题)
+- `pomodoro_records`: 专注会话历史记录
+- `app_state`: 键值存储，用于应用持久化
 
-### Test Mode
-A development feature in `timerStore` for quick testing:
-- 1-minute focus/break sessions (vs 25/5 normal)
-- Toggle only available when timer is idle
-- Use `clear_pomodoro_records` command to reset test data
+**数据库位置**: 通过 `app.path().app_data_dir()` 获取的应用数据目录
 
-## Important Notes
+**TypeScript 镜像**: `src/lib/db/schema.ts` 包含 Drizzle ORM 定义用于类型推断（实际查询中未使用）。
 
-- **Port**: Vite dev server runs on port 1420 (strict port - fails if occupied)
-- **Database Location**: App data directory via `app.path().app_data_dir()`
-- **Chinese UI**: The app interface is in Chinese (番茄专注猫)
-- **Inline Styling**: Components use inline styles (no CSS modules or styled-components)
-- **No Tests**: Project currently has no test setup
+### 路由
+React Router 嵌套路由，`<App />` 作为侧边栏布局：
+- `/` 或 `/timer` - 主计时器页面
+- `/tasks` - 任务管理
+- `/cat` - 猫咪/养成页面
+- `/stats` - 统计图表
+- `/settings` - 用户设置
 
-## Development Workflow
+### macOS 菜单栏图标
 
-When modifying data operations:
-1. Update Rust structs in `src-tauri/src/db.rs`
-2. Update SQL queries in `src-tauri/src/commands.rs`
-3. Update TypeScript types in `src/types/index.ts`
-4. Update Drizzle schema in `src/lib/db/schema.ts`
-5. Update frontend store in `src/stores/*.ts`
-6. Update UI components as needed
+**实现** (`src-tauri/src/lib.rs`):
+- 菜单栏图标使用 emoji 标题 (🐱)
+- 左键点击切换窗口显示/隐藏
+- 菜单项: 显示窗口、隐藏窗口、退出
+- 使用 `macOSPrivateApi: true` 配置
 
-When adding new Tauri commands:
-1. Add the command function to `src-tauri/src/commands.rs`
-2. Register in `invoke_handler!` macro in `src-tauri/src/lib.rs`
-3. Create corresponding TypeScript wrapper in a store file using `invoke()`
+**标题更新**: 计时器运行时更新菜单栏标题显示剩余时间 (🍅 24:00 或 ☕ 04:00)
+
+### 猫咪养成系统
+
+**等级** (定义在 `stores/userStore.ts`):
+| 等级 | 名称 | 所需罐头 |
+|------|------|----------|
+| 1 | 猫Baby | 10 |
+| 2 | 幼猫 | 30 |
+| 3 | 成年猫 | 60 |
+| 4 | 学者猫 | 100 |
+| 5 | 博士猫 | 1000 |
+
+**计算方式**: 从 `stats.totalCount` 动态计算 - 不存储在数据库中。从最高等级往下遍历找到第一个满足条件的等级。
+
+### 测试模式
+
+开发用的快速测试功能：
+- **专注时长**: 1 分钟 (正常 25 分钟)
+- **休息时长**: 1 分钟 (正常 5 分钟)
+- **记录时长**: 始终记录为 25 分钟，不使用实际经过的时间
+- **切换限制**: 仅在计时器空闲状态时可切换
+- **数据重置**: 使用 `clear_pomodoro_records` 命令清除测试数据
+
+### 类型安全
+
+- Rust 结构体使用 `#[serde(rename_all = "camelCase")]` 匹配 JS 命名约定
+- `src/types/index.ts` 中的 TypeScript 类型镜像 Rust 结构体
+- Tauri 命令通过泛型 `invoke<T>()` 实现强类型
+
+## 重要注意事项
+
+- **端口 1420**: Vite 开发服务器使用严格端口 1420 - 被占用时会失败
+- **中文界面**: 应用界面为中文 (番茄专注猫)
+- **内联样式**: 组件使用内联样式（无 CSS modules 或 styled-components）
+- **无测试**: 项目当前没有测试配置
+- **测试模式统计**: 测试模式下记录番茄钟时，使用 `config.focusDuration` (25)，不是实际经过时间 (1)
+
+## 开发工作流
+
+### 添加新的 Tauri 命令
+1. 在 `src-tauri/src/commands.rs` 中添加带 `#[tauri::command]` 的命令函数
+2. 在 `src-tauri/src/lib.rs` 的 `invoke_handler![]` 宏中注册
+3. 前端 store 通过 `@tauri-apps/api/core` 的 `invoke()` 调用
+
+### 修改数据库
+1. 更新 `src-tauri/src/db.rs` 中的表 schema (`init_db` 函数)
+2. 更新 `src-tauri/src/db.rs` 中的 Rust 结构体
+3. 更新 `src-tauri/src/commands.rs` 中的 SQL 查询
+4. 更新 `src/types/index.ts` 中的 TypeScript 类型
+
+### 构建生产版本
+```bash
+# 清理构建以确保图标更新
+cargo clean  # 在 src-tauri 目录
+
+# 构建应用包
+npm run tauri build
+
+# 输出位置: src-tauri/target/release/bundle/
+# macOS: bundle/macos/pomodoro-cat-tauri.app
+# Windows: bundle/msi/
+# Linux: bundle/deb/ 或 bundle/appimage/
+```
+
+### macOS 图标缓存问题
+构建后应用图标未更新时的解决方法：
+```bash
+# 重启 Dock
+killall Dock
+
+# 重建 LaunchServices 数据库
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -kill -r -domain local -domain system -domain user
+```

@@ -6,6 +6,6 @@ interface TestModeStore {
 }
 
 export const useTestModeStore = create<TestModeStore>((set) => ({
-  isTestMode: true, // 默认开启测试模式
+  isTestMode: false, // 默认不开启测试模式
   setIsTestMode: (enabled: boolean) => set({ isTestMode: enabled }),
 }));

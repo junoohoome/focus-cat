@@ -12,19 +12,21 @@ function formatTime(seconds: number): string {
 // 更新菜单栏标题
 async function updateTrayTitle(state: TimerState, remainingSeconds: number, type: PomodoroType) {
   try {
-    let title = "🐱";
+    let title = "🐱"; // 默认显示猫咪logo
 
     if (state === "running") {
       const timeStr = formatTime(remainingSeconds);
       const emoji = type === "focus" ? "🍅" : "☕";
       title = `${emoji} ${timeStr}`;
     } else if (state === "paused") {
-      title = "⏸️ 暂停";
+      const timeStr = formatTime(remainingSeconds);
+      title = `⏸️ ${timeStr}`;
     }
 
     await invoke("update_tray_title", { title });
   } catch (e) {
     // macOS only - ignore errors on other platforms
+    console.warn('Tray update failed:', e);
   }
 }
 

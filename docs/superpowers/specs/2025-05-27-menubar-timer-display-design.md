@@ -72,35 +72,71 @@ pub fn update_tray_title(app: AppHandle, title: String) -> Result<(), String> {
 
 ### 核心组件设计
 
-#### 1. TrayIconState 结构
+#### 1. TrayIcon 全局状态管理
 
-**职责**: 管理 TrayIcon 实例，提供更新接口
+**挑战**: Tauri 2 的 `TrayIcon` 在 `setup` 函数结束后会被销毁，无法直接存储引用。
+
+**解决方案**: 使用 Tauri 的内部 tray 管理机制
 
 ```rust
-use std::sync::{Arc, Mutex};
-use tauri::tray::TrayIcon;
+use std::sync::Arc;
+use tauri::{Manager, AppHandle};
 
 #[derive(Clone)]
-pub struct TrayIconState(pub Arc<Mutex<Option<TrayIcon>>>);
+pub struct TrayIconState(pub Arc<AppHandle>);
 
-#[cfg(target_os = "macos")]
 impl TrayIconState {
-    pub fn new() -> Self {
-        Self(Arc::new(Mutex::new(None)))
+    pub fn new(app: &AppHandle) -> Self {
+        Self(app.clone())
     }
     
-    /// 设置菜单栏标题（文字模式）
-    pub fn set_title(&self, title: &str) {
-        if let Some(tray) = self.0.lock().unwrap().as_ref() {
-            let _ = tray.set_title(title);
+    /// 更新菜单栏显示
+    pub fn update_tray(&self, title: &str) {
+        let app = self.0.clone();
+        
+        #[cfg(target_os = "macos")]
+        {
+            // 移除旧的 tray icon
+            let _ = app.remove_tray_by_id("main-tray");
+            
+            // 创建新的 tray icon（带新标题）
+            if title.is_empty() {
+                // 显示图标模式
+                let _ = self.create_tray_icon(app, "🐱");
+            } else {
+                // 显示文字模式
+                let _ = self.create_tray_icon(app, title);
+            }
         }
     }
     
-    /// 恢复图标模式（空标题）
-    pub fn restore_icon(&self) {
-        if let Some(tray) = self.0.lock().unwrap().as_ref() {
-            let _ = tray.set_title("");
-        }
+    #[cfg(target_os = "macos")]
+    fn create_tray_icon(&self, app: &AppHandle, title: &str) -> Result<(), String> {
+        use tauri::tray::{TrayIconBuilder, TrayIconEvent};
+        use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+        
+        // 重新创建菜单（需要每次重建）
+        let show_item = MenuItem::with_id(app, "show", "显示窗口", true, None::<&str>)
+            .map_err(|e| e.to_string())?;
+        let hide_item = MenuItem::with_id(app, "hide", "隐藏窗口", true, None::<&str>)
+            .map_err(|e| e.to_string())?;
+        let sep1 = PredefinedMenuItem::separator(app)
+            .map_err(|e| e.to_string())?;
+        let quit_item = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)
+            .map_err(|e| e.to_string())?;
+        
+        let menu = Menu::with_items(app, &[&show_item, &hide_item, &sep1, &quit_item])
+            .map_err(|e| e.to_string())?;
+        
+        let _tray = TrayIconBuilder::new()
+            .id("main-tray")
+            .menu(&menu)
+            .menu_on_left_click(false)
+            .title(title)
+            .build(app)
+            .map_err(|e| e.to_string())?;
+            
+        Ok(())
     }
 }
 ```
@@ -110,16 +146,12 @@ impl TrayIconState {
 **文件**: `src-tauri/src/commands.rs`
 
 ```rust
-/// 更新菜单栏标题（显示计时时间）
+/// 更新菜单栏标题（显示计时时间或恢复图标）
 #[tauri::command]
 pub fn update_tray_title(state: State<TrayIconState>, title: String) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
-        if title.is_empty() {
-            state.restore_icon(); // 显示图标
-        } else {
-            state.set_title(&title); // 显示文字
-        }
+        state.update_tray(&title);
     }
     Ok(())
 }
@@ -137,13 +169,12 @@ pub fn update_tray_title(state: State<TrayIconState>, title: String) -> Result<(
 
 ### 前端调用逻辑
 
-**现有代码保持不变**:
+**文件**: `src/stores/timerStore.ts`
 
 ```typescript
-// src/stores/timerStore.ts
 async function updateTrayTitle(state, remainingSeconds, type) {
   try {
-    let title = ""; // 默认显示图标
+    let title = "🐱"; // 默认显示猫咪logo
 
     if (state === "running") {
       const timeStr = formatTime(remainingSeconds);
@@ -153,19 +184,21 @@ async function updateTrayTitle(state, remainingSeconds, type) {
       const timeStr = formatTime(remainingSeconds);
       title = `⏸️ ${timeStr}`;
     }
-    // state === "idle" 时 title 为空字符串，显示图标
 
     await invoke("update_tray_title", { title });
   } catch (e) {
     // macOS only - ignore errors on other platforms
+    console.warn('Tray update failed:', e);
   }
 }
 ```
 
 **逻辑说明**:
-- **空闲状态**: `title = ""` → 显示猫咪logo图标
-- **运行状态**: `title = "🍅 24:00"` → 显示计时文字
-- **暂停状态**: `title = "⏸️ 24:00"` → 显示暂停信息
+- **空闲状态**: `title = "🐱"` → 重新创建带emoji的tray icon
+- **运行状态**: `title = "🍅 24:00"` → 重新创建带时间的tray icon  
+- **暂停状态**: `title = "⏸️ 24:00"` → 重新创建带暂停信息的tray icon
+
+**重要**: 由于技术限制，每次状态变化都需要重新创建 tray icon（移除旧的，创建新的）。
 
 ## 实现细节
 
@@ -221,9 +254,28 @@ async function updateTrayTitle(state, remainingSeconds, type) {
 
 ### 性能考虑
 
-- **更新频率**: 每秒一次，符合现有 timerStore 逻辑
-- **资源消耗**: TrayIcon.set_title() 是轻量操作
-- **线程安全**: 使用 Arc<Mutex<>> 确保并发安全
+- **更新频率**: 每秒一次重建 tray icon（技术限制）
+- **性能目标**: 更新延迟 < 100ms，CPU 使用 < 5%
+- **内存管理**: 确保旧的 tray icon 被正确释放
+- **线程安全**: 使用 Arc<AppHandle> 确保跨线程安全
+
+### 实施注意事项
+
+**菜单事件监听器重建**:
+每次重建 tray icon 时需要重新绑定菜单事件：
+
+```rust
+// 在 create_tray_icon 中重新绑定事件
+let app_handle = app.clone();
+app.on_tray_icon_event(move |_tray_id, event| {
+    // 事件处理逻辑
+});
+```
+
+**性能优化**:
+- 考虑使用防抖策略减少不必要的重建
+- 只在状态真正改变时才重建
+- 添加性能监控代码
 
 ## 兼容性
 
@@ -239,13 +291,31 @@ async function updateTrayTitle(state, remainingSeconds, type) {
 ## 风险和限制
 
 ### 技术风险
-1. **TrayIcon API 限制**: Tauri 2 的 TrayIcon 可能有API变更
-2. **图标显示**: macOS 对菜单栏图标有特殊要求（template模式）
+1. **TrayIcon 重建开销**: 每秒重建 tray icon 可能有性能影响
+2. **菜单事件丢失**: 重建 tray icon 会重置菜单事件监听器
+3. **内存泄漏风险**: 频繁创建/销毁 tray icon 需要仔细管理
 
 ### 缓解措施
-1. 使用官方 Tauri 2 API，避免私有方法
-2. 错误处理：即使更新失败也不影响主功能
-3. 保留现有 emoji 作为后备方案
+1. **性能监控**: 实施后监控 CPU 和内存使用
+2. **事件管理**: 确保菜单事件在重建后正确重新绑定
+3. **错误隔离**: tray 更新失败不应影响主计时功能
+4. **后备方案**: 如果重建失败，保持现有状态不变
+
+## 错误处理策略
+
+### 错误场景和处理
+
+| 错误场景 | 处理方式 | 用户影响 |
+|----------|----------|----------|
+| TrayIcon 创建失败 | 记录错误，继续主功能 | 菜单栏可能不更新 |
+| TrayIcon 移除失败 | 忽略错误，创建新的 | 可能有重复图标 |
+| 菜单创建失败 | 返回错误，不更新tray | 菜单栏功能受限 |
+| 频繁更新失败 | 降低更新频率或停止更新 | 用户体验下降 |
+
+### 错误恢复
+- **自动重试**: 更新失败时在下次tick时重试
+- **降级策略**: 连续失败时停止更新，避免影响性能
+- **用户通知**: 不显示错误通知，静默处理
 
 ## 实施计划
 

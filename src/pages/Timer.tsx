@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useTimerStore } from "../stores/timerStore";
 import { useTaskStore } from "../stores/taskStore";
 import { useUserStore } from "../stores/userStore";
@@ -30,14 +30,12 @@ export default function TimerPage() {
     pause,
     resume,
     stop,
-    tick,
     setTestMode,
   } = useTimerStore();
 
   const { currentTask, fetchActiveTasks, incrementTaskProgress } = useTaskStore();
   const { config, fetchConfig, userData } = useUserStore();
   const { isTestMode } = useTestModeStore();
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // 测试模式下的时长：1分钟专注，1分钟休息
   const TEST_FOCUS_DURATION = 1;
@@ -52,25 +50,6 @@ export default function TimerPage() {
   useEffect(() => {
     setTestMode(isTestMode);
   }, [isTestMode, setTestMode]);
-
-  useEffect(() => {
-    if (state === "running") {
-      intervalRef.current = setInterval(() => {
-        tick();
-      }, 1000);
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    }
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [state, tick]);
 
   useEffect(() => {
     if (state === "running" && remainingSeconds === 0) {

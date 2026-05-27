@@ -1,4 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
+import GlobalTimer from "./components/GlobalTimer";
 
 // SVG 图标组件
 const TimerIcon = ({ color = "#999", size = 20 }: { color?: string; size?: number }) => (
@@ -45,7 +46,11 @@ function App() {
   const navigate = useNavigate();
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'linear-gradient(135deg, #FFF8F0 0%, #FFE8D6 100%)' }}>
+    <>
+      {/* 全局计时器 - 必须在顶层，确保页面切换时计时器不会停止 */}
+      <GlobalTimer />
+
+      <div style={{ display: 'flex', minHeight: '100vh', background: 'linear-gradient(135deg, #FFF8F0 0%, #FFE8D6 100%)' }}>
       {/* 左侧边栏 */}
       <aside style={{
         width: '200px',
@@ -131,6 +136,7 @@ function App() {
         <Outlet />
       </main>
     </div>
+    </>
   );
 }
 

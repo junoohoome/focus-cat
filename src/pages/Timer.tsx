@@ -14,14 +14,6 @@ const CAT_ICONS: Record<number, string> = {
   5: "😾",
 };
 
-const CAT_STAGES = [
-  { level: 1, name: "猫Baby" },
-  { level: 2, name: "幼猫" },
-  { level: 3, name: "成年猫" },
-  { level: 4, name: "学者猫" },
-  { level: 5, name: "博士猫" },
-];
-
 export default function TimerPage() {
   const {
     state,

@@ -157,6 +157,7 @@ pub struct NewPomodoroRecord {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Stats {
+    // 现有字段
     pub today_count: i32,
     pub today_minutes: i32,
     pub week_count: i32,
@@ -164,6 +165,26 @@ pub struct Stats {
     pub total_count: i32,
     pub total_minutes: i32,
     pub daily_data: Vec<DailyStats>,
+
+    // 周报数据
+    pub week_start_date: String,
+    pub week_end_date: String,
+    pub week_streak_days: i32,
+    pub week_completed_tasks: i32,
+    pub week_incomplete_tasks: i32,
+    pub week_task_breakdown: Vec<TaskReportItem>,
+    pub week_daily_data: Vec<DailyStats>,
+
+    // 月报数据
+    pub month_start_date: String,
+    pub month_end_date: String,
+    pub month_count: i32,
+    pub month_minutes: i32,
+    pub month_streak_days: i32,
+    pub month_completed_tasks: i32,
+    pub month_incomplete_tasks: i32,
+    pub month_task_breakdown: Vec<TaskReportItem>,
+    pub month_daily_data: Vec<DailyStats>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -172,4 +193,15 @@ pub struct DailyStats {
     pub date: String,
     pub count: i32,
     pub minutes: i32,
+}
+
+// 任务报告项
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskReportItem {
+    pub task_id: i64,
+    pub task_name: String,
+    pub pomodoro_count: i32,
+    pub focus_minutes: i32,
+    pub is_completed: bool,
 }

@@ -1,8 +1,9 @@
 use crate::db::*;
 use crate::TrayIconState;
 use rusqlite::params;
+use std::collections::HashSet;
 use tauri::{AppHandle, Manager, State};
-use chrono::{Utc, Datelike, Duration};
+use chrono::{Utc, Datelike, Duration, NaiveDate};
 
 // 获取任务列表
 #[tauri::command]
@@ -283,6 +284,56 @@ pub fn record_pomodoro(app: AppHandle, record: NewPomodoroRecord) -> Result<Pomo
     Ok(record)
 }
 
+// 查询任务明细（周报/月报共用）
+fn query_task_breakdown(conn: &rusqlite::Connection, start_date: &str, end_date: &str) -> Result<Vec<TaskReportItem>, String> {
+    let mut stmt = conn.prepare(
+        "SELECT
+            COALESCE(pr.task_id, 0) as task_id,
+            COALESCE(t.name, '未关联任务') as task_name,
+            CASE WHEN COALESCE(t.completed, 0) = 1 THEN 1 ELSE 0 END as is_completed,
+            COUNT(*) as pomodoro_count,
+            COALESCE(SUM(pr.duration), 0) as focus_minutes
+         FROM pomodoro_records pr
+         LEFT JOIN tasks t ON pr.task_id = t.id
+         WHERE pr.type = 'focus' AND date(pr.recorded_at) >= ? AND date(pr.recorded_at) <= ?
+         GROUP BY pr.task_id
+         ORDER BY pomodoro_count DESC"
+    ).map_err(|e| e.to_string())?;
+
+    let rows = stmt.query_map(params![start_date, end_date], |row| {
+        Ok(TaskReportItem {
+            task_id: row.get(0)?,
+            task_name: row.get(1)?,
+            is_completed: row.get::<_, i32>(2)? != 0,
+            pomodoro_count: row.get(3)?,
+            focus_minutes: row.get(4)?,
+        })
+    }).map_err(|e| e.to_string())?;
+
+    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+}
+
+// 查询每日数据（周报/月报共用）
+fn query_daily_data(conn: &rusqlite::Connection, start_date: &str, end_date: &str) -> Result<Vec<DailyStats>, String> {
+    let mut stmt = conn.prepare(
+        "SELECT date(recorded_at), COUNT(*), COALESCE(SUM(duration), 0)
+         FROM pomodoro_records
+         WHERE type = 'focus' AND date(recorded_at) >= ? AND date(recorded_at) <= ?
+         GROUP BY date(recorded_at)
+         ORDER BY date(recorded_at)"
+    ).map_err(|e| e.to_string())?;
+
+    let rows = stmt.query_map(params![start_date, end_date], |row| {
+        Ok(DailyStats {
+            date: row.get(0)?,
+            count: row.get(1)?,
+            minutes: row.get(2)?,
+        })
+    }).map_err(|e| e.to_string())?;
+
+    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+}
+
 // 获取统计数据
 #[tauri::command]
 pub fn get_stats(app: AppHandle) -> Result<Stats, String> {
@@ -291,11 +342,25 @@ pub fn get_stats(app: AppHandle) -> Result<Stats, String> {
 
     let now = Utc::now();
     let today = now.format("%Y-%m-%d").to_string();
+    let year = now.year();
+    let month = now.month();
 
     // 获取本周一
     let weekday = now.weekday();
-    let days_since_monday = (weekday.num_days_from_monday()) as i64;
-    let this_monday = (now - Duration::days(days_since_monday)).format("%Y-%m-%d").to_string();
+    let days_since_monday = weekday.num_days_from_monday() as i64;
+    let week_start_date = (now - Duration::days(days_since_monday)).format("%Y-%m-%d").to_string();
+    let week_end_date = (now - Duration::days(days_since_monday) + Duration::days(6)).format("%Y-%m-%d").to_string();
+
+    // 获取本月范围
+    let month_start_date = format!("{:04}-{:02}-01", year, month);
+    let next_month_first = if month == 12 {
+        NaiveDate::from_ymd_opt(year + 1, 1, 1).unwrap()
+    } else {
+        NaiveDate::from_ymd_opt(year, month + 1, 1).unwrap()
+    };
+    let month_end_date = next_month_first.pred_opt().unwrap().format("%Y-%m-%d").to_string();
+
+    // === 现有查询 ===
 
     // 今日统计
     let (today_count, today_minutes): (i32, i32) = conn.query_row(
@@ -309,7 +374,7 @@ pub fn get_stats(app: AppHandle) -> Result<Stats, String> {
     let (week_count, week_minutes): (i32, i32) = conn.query_row(
         "SELECT COUNT(*), COALESCE(SUM(duration), 0) FROM pomodoro_records
          WHERE type = 'focus' AND date(recorded_at) >= ?",
-        params![this_monday],
+        params![week_start_date],
         |row| Ok((row.get(0)?, row.get(1)?)),
     ).map_err(|e| e.to_string())?;
 
@@ -332,17 +397,65 @@ pub fn get_stats(app: AppHandle) -> Result<Stats, String> {
     ).map_err(|e| e.to_string())?;
 
     let rows = stmt.query_map([], |row| {
-        Ok((
-            row.get::<_, String>(0)?,
-            row.get::<_, i32>(1)?,
-            row.get::<_, i32>(2)?,
-        ))
+        Ok(DailyStats {
+            date: row.get(0)?,
+            count: row.get(1)?,
+            minutes: row.get(2)?,
+        })
     }).map_err(|e| e.to_string())?;
 
     for row in rows {
-        let (date, count, minutes) = row.map_err(|e| e.to_string())?;
-        daily_data.push(DailyStats { date, count, minutes });
+        let ds = row.map_err(|e| e.to_string())?;
+        daily_data.push(ds);
     }
+
+    // === 新增：连续专注天数 ===
+    let mut focus_dates_stmt = conn.prepare(
+        "SELECT DISTINCT date(recorded_at) FROM pomodoro_records WHERE type = 'focus'"
+    ).map_err(|e| e.to_string())?;
+
+    let focus_dates: HashSet<String> = focus_dates_stmt.query_map([], |row| {
+        row.get::<_, String>(0)
+    }).map_err(|e| e.to_string())?
+    .collect::<Result<HashSet<_>, _>>()
+    .map_err(|e| e.to_string())?;
+
+    let mut streak_days: i32 = 0;
+    let mut check_date = now;
+    for _ in 0..365 {
+        let date_str = check_date.format("%Y-%m-%d").to_string();
+        if focus_dates.contains(&date_str) {
+            streak_days += 1;
+            check_date = check_date - Duration::days(1);
+        } else {
+            break;
+        }
+    }
+
+    // === 新增：周报数据 ===
+    let week_task_breakdown = query_task_breakdown(&conn, &week_start_date, &week_end_date)?;
+    let week_daily_data = query_daily_data(&conn, &week_start_date, &week_end_date)?;
+
+    let week_completed_tasks = week_task_breakdown.iter()
+        .filter(|item| item.task_id > 0 && item.is_completed).count() as i32;
+    let week_incomplete_tasks = week_task_breakdown.iter()
+        .filter(|item| item.task_id > 0 && !item.is_completed).count() as i32;
+
+    // === 新增：月报数据 ===
+    let (month_count, month_minutes): (i32, i32) = conn.query_row(
+        "SELECT COUNT(*), COALESCE(SUM(duration), 0) FROM pomodoro_records
+         WHERE type = 'focus' AND date(recorded_at) >= ? AND date(recorded_at) <= ?",
+        params![month_start_date, month_end_date],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    ).map_err(|e| e.to_string())?;
+
+    let month_task_breakdown = query_task_breakdown(&conn, &month_start_date, &month_end_date)?;
+    let month_daily_data = query_daily_data(&conn, &month_start_date, &month_end_date)?;
+
+    let month_completed_tasks = month_task_breakdown.iter()
+        .filter(|item| item.task_id > 0 && item.is_completed).count() as i32;
+    let month_incomplete_tasks = month_task_breakdown.iter()
+        .filter(|item| item.task_id > 0 && !item.is_completed).count() as i32;
 
     Ok(Stats {
         today_count,
@@ -352,6 +465,22 @@ pub fn get_stats(app: AppHandle) -> Result<Stats, String> {
         total_count,
         total_minutes,
         daily_data,
+        week_start_date,
+        week_end_date,
+        week_streak_days: streak_days,
+        week_completed_tasks,
+        week_incomplete_tasks,
+        week_task_breakdown,
+        week_daily_data,
+        month_start_date,
+        month_end_date,
+        month_count,
+        month_minutes,
+        month_streak_days: streak_days,
+        month_completed_tasks,
+        month_incomplete_tasks,
+        month_task_breakdown,
+        month_daily_data,
     })
 }
 

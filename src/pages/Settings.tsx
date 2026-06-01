@@ -102,7 +102,7 @@ function SectionHeader({ emoji, title }: { emoji: string; title: string }) {
 }
 
 export default function SettingsPage() {
-  const { config, fetchConfig, updateConfig, exportData, importData } = useUserStore();
+  const { config, fetchConfig, updateConfig, exportData, importData, toggleAutoLaunch } = useUserStore();
   const { isTestMode, setIsTestMode } = useTestModeStore();
 
   const handleClearData = async () => {
@@ -259,6 +259,15 @@ export default function SettingsPage() {
           >
             清除所有番茄记录
           </button>
+        </div>
+      </div>
+
+      {/* 系统 */}
+      <div className="card" style={cardStyle}>
+        <SectionHeader emoji="🖥" title="系统" />
+        <div style={{ marginBottom: 0 }}>
+          <ToggleRow label="开机启动" hint="登录系统时自动启动并最小化到托盘" enabled={config.autoLaunch}
+            onChange={() => toggleAutoLaunch(!config.autoLaunch)} />
         </div>
       </div>
 

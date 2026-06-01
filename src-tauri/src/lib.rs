@@ -133,6 +133,22 @@ pub fn run() {
             // 将连接存入全局状态
             app.manage(DbConnection(Mutex::new(conn)));
 
+            // 开机启动时隐藏窗口（最小化到托盘）
+            let auto_launch: bool = {
+                let db_guard = app.state::<DbConnection>();
+                let conn = db_guard.0.lock().unwrap();
+                conn.query_row(
+                    "SELECT COALESCE(auto_launch, 0) FROM user_config WHERE id = 1",
+                    [],
+                    |row| row.get::<_, i32>(0),
+                ).unwrap_or(0) != 0
+            };
+            if auto_launch {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.hide();
+                }
+            }
+
             // === 创建菜单栏 ===
             #[cfg(target_os = "macos")]
             {

@@ -21,6 +21,7 @@ interface UserStore {
   fetchUserData: () => Promise<void>;
   exportData: (path: string) => Promise<void>;
   importData: (path: string) => Promise<void>;
+  toggleAutoLaunch: (enabled: boolean) => Promise<void>;
 }
 
 // 猫咪成长阶段配置
@@ -111,5 +112,16 @@ export const useUserStore = create<UserStore>((set, get) => ({
     await invoke("import_data", { path });
     await get().fetchConfig();
     await get().fetchStats();
+  },
+
+  toggleAutoLaunch: async (enabled: boolean) => {
+    await invoke("update_user_config", { autoLaunch: enabled });
+    const { enable, disable } = await import("@tauri-apps/plugin-autostart");
+    if (enabled) {
+      await enable();
+    } else {
+      await disable();
+    }
+    await get().fetchConfig();
   },
 }));

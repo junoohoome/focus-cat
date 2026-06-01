@@ -52,7 +52,7 @@ State sync via Tauri event system:
 | Event | Direction | Payload | Purpose |
 |-------|-----------|---------|---------|
 | `timer-tick` | Main/Background → Pet | `{ remaining }` | Update countdown display |
-| `timer-state` | Main/Background → Pet | `{ state: "idle" \| "running" \| "paused" \| "break" }` | Switch cat animation |
+| `timer-state` | Main/Background → Pet | `{ state: "idle" \| "running" \| "paused" \| "break" }` | Switch cat animation (maps from timerStore's `status` and `isBreakMode` fields) |
 | `pet-config` | Main → Pet | `{ show, ... }` | Update pet settings |
 | `pet-clicked` | Pet → Main | — | Focus/show main window |
 | `pet-dragged` | Pet → Background | `{ x, y }` | Save new position |

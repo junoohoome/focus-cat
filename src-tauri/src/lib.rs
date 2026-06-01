@@ -233,6 +233,8 @@ pub fn run() {
             // 数据管理
             commands::export_data,
             commands::import_data,
+            // 桌面宠物
+            commands::toggle_pet_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

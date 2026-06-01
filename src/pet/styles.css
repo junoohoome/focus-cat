@@ -1,0 +1,81 @@
+/* Pet window styles */
+html, body {
+  background: transparent !important;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Cat container */
+.pet-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 120px;
+  height: 120px;
+  cursor: grab;
+}
+
+.pet-container:active {
+  cursor: grabbing;
+}
+
+/* Timer text below cat */
+.pet-timer {
+  font-size: 12px;
+  color: #888;
+  margin-top: 2px;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+/* === Idle: tail wag === */
+@keyframes tailWag {
+  0%, 100% { transform: rotate(-15deg); }
+  50% { transform: rotate(15deg); }
+}
+
+.cat-idle-tail {
+  animation: tailWag 2s ease-in-out infinite;
+  transform-origin: 32px 52px;
+}
+
+/* === Running: breathing === */
+@keyframes breathe {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(1.06); }
+}
+
+.cat-running-body {
+  animation: breathe 2.5s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+/* === Paused: Zzz float === */
+@keyframes zzzFloat {
+  0% { opacity: 0; transform: translate(0, 0); }
+  50% { opacity: 1; }
+  100% { opacity: 0; transform: translate(5px, -12px); }
+}
+
+.cat-paused-zzz {
+  animation: zzzFloat 2s ease-in-out infinite;
+}
+
+.cat-paused-zzz-delay {
+  animation: zzzFloat 2s ease-in-out 0.7s infinite;
+}
+
+/* === Break: head turn === */
+@keyframes headTurn {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(2px); }
+  75% { transform: translateX(-2px); }
+}
+
+.cat-break-head {
+  animation: headTurn 3s ease-in-out infinite;
+}

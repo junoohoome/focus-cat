@@ -44,8 +44,8 @@ export default function ReportTab({
 
     let shortLabel: string;
     if (isWeekly) {
-      if (d.getTime() === today.getTime()) shortLabel = "今天";
-      else if (d.getTime() === yesterday.getTime()) shortLabel = "昨天";
+      if (d.toDateString() === today.toDateString()) shortLabel = "今天";
+      else if (d.toDateString() === yesterday.toDateString()) shortLabel = "昨天";
       else shortLabel = `${d.getMonth() + 1}/${d.getDate()}`;
     } else {
       const day = d.getDate();

@@ -1,8 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import PetWindow from "./PetWindow";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <div style={{ color: "#333", fontSize: "12px" }}>Pet Window</div>
+    <PetWindow />
   </React.StrictMode>,
 );

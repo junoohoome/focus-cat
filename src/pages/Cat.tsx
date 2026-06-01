@@ -1,30 +1,38 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useUserStore } from "../stores/userStore";
+import type { WeightState } from "../types";
 
-const CAT_ICONS: Record<number, string> = {
-  1: "🐱",
-  2: "😿",
-  3: "😸",
-  4: "🙀",
-  5: "😾",
-};
+function getWeightState(weight: number): WeightState {
+  if (weight < 2.0) return { label: "骨感", icon: "🦴", mood: "不开心", color: "#FFB6C1" };
+  if (weight < 4.0) return { label: "苗条", icon: "🐱", mood: "平静", color: "#98FB98" };
+  if (weight < 6.0) return { label: "标准", icon: "😻", mood: "最开心", color: "#4CAF50" };
+  if (weight < 8.0) return { label: "微胖", icon: "😺", mood: "满足", color: "#FFA500" };
+  if (weight < 9.5) return { label: "胖胖", icon: "🤰", mood: "犯困", color: "#FF6347" };
+  return { label: "圆滚滚", icon: "🎱", mood: "懒洋洋", color: "#FF4500" };
+}
 
-const CAT_STAGES = [
-  { level: 1, name: "猫Baby", cansNeeded: 10, desc: "刚出生的小猫，睁着大眼睛" },
-  { level: 2, name: "幼猫", cansNeeded: 30, desc: "活泼好动，开始探索世界" },
-  { level: 3, name: "成年猫", cansNeeded: 60, desc: "优雅成熟，专注沉稳" },
-  { level: 4, name: "学者猫", cansNeeded: 100, desc: "勤奋学习，积累知识" },
-  { level: 5, name: "博士猫", cansNeeded: 1000, desc: "学业有成，满腹经纶" },
-];
+function formatTimeAgo(dateStr: string): string {
+  const date = new Date(dateStr.replace(" ", "T"));
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return "刚刚";
+  if (diffMins < 60) return `${diffMins}分钟前`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}小时前`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}天前`;
+}
 
 export default function CatPage() {
-  const { userData, stats, fetchUserData } = useUserStore();
+  const { catState, fetchCatState, feedCat } = useUserStore();
+  const [showGuide, setShowGuide] = useState(false);
 
   useEffect(() => {
-    fetchUserData();
-  }, [fetchUserData]);
+    fetchCatState();
+  }, [fetchCatState]);
 
-  if (!userData || !stats) {
+  if (!catState) {
     return (
       <div style={{ display: 'flex', height: '50vh', alignItems: 'center', justifyContent: 'center' }}>
         <span style={{ color: 'var(--text-tertiary)', fontSize: '14px' }}>加载中...</span>
@@ -32,185 +40,184 @@ export default function CatPage() {
     );
   }
 
-  const currentCat = CAT_STAGES.find((s) => s.level === userData.level) || CAT_STAGES[0];
-  const nextCat = CAT_STAGES.find((s) => s.level === userData.level + 1);
+  const weightState = getWeightState(catState.weight);
+  const weightPercent = ((catState.weight - 1) / 9) * 100;
+  const canFeed = catState.foodInventory > 0 && catState.weight < 10.0;
+  const isBest = catState.weight >= 4.0 && catState.weight < 6.0;
 
-  let progressPercent = 100;
-  if (nextCat) {
-    const currentLevel = userData.level;
-    const prevLevelThreshold = currentLevel === 1 ? 0 : CAT_STAGES.find((s) => s.level === currentLevel - 1)!.cansNeeded;
-    const nextLevelThreshold = nextCat.cansNeeded;
-    const range = nextLevelThreshold - prevLevelThreshold;
-    const currentInRange = userData.totalCans - prevLevelThreshold;
-
-    if (range > 0) {
-      progressPercent = (currentInRange / range) * 100;
+  const handleFeed = async () => {
+    if (!canFeed) return;
+    try {
+      await feedCat();
+    } catch {
+      // Error handled in store
     }
-    progressPercent = Math.min(Math.max(progressPercent, 0), 100);
-  }
+  };
 
   return (
     <div>
       {/* Cat showcase */}
-      <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+      <div style={{ textAlign: 'center', marginBottom: '24px' }}>
         <div style={{
-          width: '140px',
-          height: '140px',
-          margin: '0 auto 16px',
+          width: '120px',
+          height: '120px',
+          margin: '0 auto 12px',
           background: 'var(--surface-secondary)',
           borderRadius: '50%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          border: '1px solid var(--border-color)',
+          border: isBest ? '2px solid #4CAF50' : '1px solid var(--border-color)',
+          boxShadow: isBest ? '0 0 12px rgba(76,175,80,0.15)' : 'none',
         }}>
-          <span style={{ fontSize: '80px', lineHeight: '1' }}>
-            {CAT_ICONS[userData.level]}
-          </span>
+          <span style={{ fontSize: '64px', lineHeight: '1' }}>🐱</span>
         </div>
-        <span style={{
-          fontSize: '18px',
-          fontWeight: '600',
-          color: 'var(--text-primary)',
-          display: 'block',
-          marginBottom: '4px'
-        }}>
-          {currentCat.name}
-        </span>
-        <span style={{
-          fontSize: '13px',
-          color: 'var(--text-secondary)',
-          fontWeight: '400',
-        }}>
-          Lv.{userData.level}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginBottom: '4px' }}>
+          <span style={{ fontSize: '16px' }}>{weightState.icon}</span>
+          <span style={{
+            fontSize: '15px',
+            fontWeight: '600',
+            color: weightState.color,
+          }}>
+            {weightState.label}
+          </span>
+          {isBest && <span style={{ fontSize: '12px', color: '#4CAF50' }}>⭐</span>}
+        </div>
+        <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
+          心情: {weightState.mood}
         </span>
       </div>
 
-      {/* Progress section */}
+      {/* Weight progress */}
       <div style={{
         background: 'var(--card-bg)',
         borderRadius: 'var(--radius-md)',
         padding: '16px',
         border: '1px solid var(--border-color)',
-        marginBottom: '20px',
+        marginBottom: '16px',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
           <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>
-            猫咪罐头进度
+            猫咪重量
           </span>
-          <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '500', fontVariantNumeric: 'tabular-nums' }}>
-            {nextCat ? `${Math.round(progressPercent)}%` : 'MAX'}
-          </span>
-        </div>
-        <div className="progress-bar" style={{ marginBottom: '8px' }}>
-          <div className="progress-fill" style={{ width: `${progressPercent}%` }} />
-        </div>
-        <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', display: 'block', textAlign: 'center' }}>
-          {nextCat ? `再完成 ${nextCat.cansNeeded - userData.totalCans} 个猫咪罐头升级` : '已达到最高等级！'}
-        </span>
-      </div>
-
-      {/* Growth stages */}
-      <div style={{ marginBottom: '20px' }}>
-        <div style={{ padding: '0 0 8px', marginBottom: '4px' }}>
-          <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
-            成长路径
+          <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '600', fontVariantNumeric: 'tabular-nums' }}>
+            {catState.weight.toFixed(1)} kg
           </span>
         </div>
-
-        <div style={{
-          background: 'var(--card-bg)',
-          borderRadius: 'var(--radius-md)',
-          border: '1px solid var(--border-color)',
-          overflow: 'hidden',
-        }}>
-          {CAT_STAGES.map((item, index) => {
-            const isUnlocked = item.level <= userData.level;
-            const isCurrent = item.level === userData.level;
-            return (
-              <div
-                key={item.level}
-                style={{
-                  padding: '12px 16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  borderBottom: index < CAT_STAGES.length - 1 ? '1px solid var(--border-subtle)' : 'none',
-                  background: isCurrent ? 'var(--accent-light)' : 'transparent',
-                  opacity: !isUnlocked ? 0.5 : 1,
-                  transition: 'opacity 0.15s ease',
-                }}
-              >
-                <div style={{
-                  width: '36px',
-                  height: '36px',
-                  marginRight: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}>
-                  {isUnlocked ? (
-                    <span style={{ fontSize: '24px', lineHeight: '1' }}>{CAT_ICONS[item.level]}</span>
-                  ) : (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                    </svg>
-                  )}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)', display: 'block', marginBottom: '1px' }}>
-                    {item.name}
-                  </span>
-                  <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', display: 'block' }}>
-                    {item.desc}
-                  </span>
-                </div>
-                {item.level < userData.level && (
-                  <span style={{ fontSize: '13px', color: 'var(--success-color)', fontWeight: '500' }}>✓</span>
-                )}
-                {isCurrent && (
-                  <span style={{
-                    fontSize: '11px',
-                    color: 'var(--accent-color)',
-                    fontWeight: '500',
-                    background: 'var(--accent-light)',
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                  }}>当前</span>
-                )}
-              </div>
-            );
-          })}
+        <div className="progress-bar" style={{ marginBottom: '6px' }}>
+          <div className="progress-fill" style={{ width: `${weightPercent}%` }} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>1 kg</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>10 kg</span>
         </div>
       </div>
 
-      {/* Tips */}
+      {/* Feeding info */}
       <div style={{
         background: 'var(--card-bg)',
         borderRadius: 'var(--radius-md)',
         padding: '16px',
         border: '1px solid var(--border-color)',
+        marginBottom: '16px',
       }}>
-        <div style={{ marginBottom: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
-            成长提示
+            喂养信息
           </span>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginRight: '8px', lineHeight: '1.6' }}>•</span>
-            <span style={{ flex: 1, fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-              完成一个完整番茄钟(25分钟)= 1个猫咪罐头
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>🥫 罐头库存</span>
+            <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '600', fontVariantNumeric: 'tabular-nums' }}>
+              {catState.foodInventory} 个
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-            <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginRight: '8px', lineHeight: '1.6' }}>•</span>
-            <span style={{ flex: 1, fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-              中途放弃和休息时间不计入猫咪罐头
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>🕐 上次喂食</span>
+            <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>
+              {formatTimeAgo(catState.lastFedAt)}
             </span>
           </div>
         </div>
+        <button
+          onClick={handleFeed}
+          disabled={!canFeed}
+          style={{
+            width: '100%',
+            padding: '10px',
+            borderRadius: 'var(--radius-md)',
+            border: 'none',
+            fontSize: '14px',
+            fontWeight: '600',
+            cursor: canFeed ? 'pointer' : 'not-allowed',
+            background: canFeed ? 'var(--accent-color)' : 'var(--surface-secondary)',
+            color: canFeed ? 'white' : 'var(--text-tertiary)',
+            transition: 'opacity 0.15s ease',
+          }}
+        >
+          {catState.weight >= 10.0
+            ? "吃不下了喵..."
+            : catState.foodInventory <= 0
+              ? "没有罐头了喵..."
+              : `喂食 🥫 ×1`}
+        </button>
+      </div>
+
+      {/* Feeding guide (collapsible) */}
+      <div style={{
+        background: 'var(--card-bg)',
+        borderRadius: 'var(--radius-md)',
+        border: '1px solid var(--border-color)',
+        overflow: 'hidden',
+      }}>
+        <button
+          onClick={() => setShowGuide(!showGuide)}
+          style={{
+            width: '100%',
+            padding: '12px 16px',
+            border: 'none',
+            background: 'transparent',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            cursor: 'pointer',
+            fontSize: '13px',
+            fontWeight: '600',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          <span>喂养指南</span>
+          <span style={{ fontSize: '12px', transform: showGuide ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
+        </button>
+        {showGuide && (
+          <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginRight: '8px', lineHeight: '1.6' }}>•</span>
+              <span style={{ flex: 1, fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                完成一个番茄钟 → 获得 1 个罐头
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginRight: '8px', lineHeight: '1.6' }}>•</span>
+              <span style={{ flex: 1, fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                点击桌面猫咪或此页按钮喂食
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginRight: '8px', lineHeight: '1.6' }}>•</span>
+              <span style={{ flex: 1, fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                猫咪每天消耗约 0.3kg，需要持续喂养
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginRight: '8px', lineHeight: '1.6' }}>•</span>
+              <span style={{ flex: 1, fontSize: '12px', color: '#4CAF50', lineHeight: '1.6', fontWeight: '500' }}>
+                ⭐ 保持在 4-6kg 是最佳状态
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

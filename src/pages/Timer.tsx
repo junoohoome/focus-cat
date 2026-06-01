@@ -3,10 +3,6 @@ import { useTimerStore } from "../stores/timerStore";
 import { useTaskStore } from "../stores/taskStore";
 import { useUserStore } from "../stores/userStore";
 import { useTestModeStore } from "../stores/testModeStore";
-import { invoke } from "@tauri-apps/api/core";
-import { sendNotification as sendTauriNotification } from "@tauri-apps/plugin-notification";
-import { emit } from "@tauri-apps/api/event";
-import { playCompleteSound, playBreakEndSound } from "../lib/sound";
 
 const CAT_ICONS: Record<number, string> = {
   1: "🐱",
@@ -26,12 +22,11 @@ export default function TimerPage() {
     pause,
     resume,
     stop,
-    prepareBreakMode,
     switchToFocus,
     setTestMode,
   } = useTimerStore();
 
-  const { currentTask, fetchActiveTasks, incrementTaskProgress } = useTaskStore();
+  const { currentTask, fetchActiveTasks } = useTaskStore();
   const { config, fetchConfig, userData, stats, fetchStats } = useUserStore();
   const { isTestMode } = useTestModeStore();
 
@@ -49,111 +44,6 @@ export default function TimerPage() {
   useEffect(() => {
     setTestMode(isTestMode);
   }, [isTestMode, setTestMode]);
-
-  useEffect(() => {
-    if (state === "running" && remainingSeconds === 0) {
-      handleComplete();
-    }
-  }, [remainingSeconds, state]);
-
-  // 发送通知：桌面宠物可见时用宠物气泡，否则用系统通知
-  const sendPetNotification = async (title: string, body: string) => {
-    try {
-      await emit("pet-notification", { title, body });
-    } catch (e) {
-      console.warn("pet-notification emit failed:", e);
-    }
-  };
-
-  const sendSystemNotification = async (title: string, body: string) => {
-    try {
-      await sendTauriNotification({ title, body });
-    } catch (error) {
-      console.error('通知发送失败:', error);
-      showBrowserNotification(title, body);
-    }
-  };
-
-  const handleComplete = async () => {
-    if (type === "focus") {
-      const focusMinutes = config?.focusDuration || 25;
-      await invoke("record_pomodoro", {
-        record: {
-          taskId: currentTask?.id || null,
-          duration: focusMinutes,
-          type: "focus",
-        },
-      });
-
-      if (currentTask) {
-        await incrementTaskProgress(currentTask.id);
-      }
-
-      // Increment pomodoro session counter for long break tracking
-      useTimerStore.setState(s => ({ completedPomodorosInSession: s.completedPomodorosInSession + 1 }));
-
-      // Check daily goal
-      await fetchStats();
-      const todayCount = useUserStore.getState().stats?.todayCount || 0;
-      const dailyGoal = config?.dailyGoal || 8;
-
-      // 播放声音
-      if (config?.enableSound !== false) {
-        playCompleteSound();
-      }
-
-      // 发送通知
-      if (config?.enableNotifications !== false) {
-        const msg = todayCount >= dailyGoal
-          ? '目标达成！今天太棒了！'
-          : '太棒了！休息一下吧~';
-        sendSystemNotification('专注完成！', msg);
-        sendPetNotification('专注完成！', msg);
-      }
-
-      prepareBreakMode();
-
-      // Auto-start break if enabled
-      if (config?.autoStart) {
-        const { storedFocusDuration, storedBreakDuration, storedLongBreakDuration, storedAutoStart, completedPomodorosInSession } = useTimerStore.getState();
-        const isLongBreak = completedPomodorosInSession >= 4;
-        const breakMins = isLongBreak ? storedLongBreakDuration : storedBreakDuration;
-        start(storedFocusDuration, breakMins, storedLongBreakDuration, storedAutoStart);
-      }
-    } else {
-      // 播放声音
-      if (config?.enableSound !== false) {
-        playBreakEndSound();
-      }
-
-      // 发送通知
-      if (config?.enableNotifications !== false) {
-        sendSystemNotification('休息结束！', '准备开始新的专注吧~');
-        sendPetNotification('休息结束！', '准备开始新的专注吧~');
-      }
-
-      stop();
-
-      // Auto-start next focus if enabled
-      if (config?.autoStart) {
-        const { storedFocusDuration, storedBreakDuration, storedLongBreakDuration, storedAutoStart } = useTimerStore.getState();
-        start(storedFocusDuration, storedBreakDuration, storedLongBreakDuration, storedAutoStart);
-      }
-    }
-  };
-
-  // 浏览器通知作为备选方案
-  const showBrowserNotification = (title: string, body: string) => {
-    if ("Notification" in window && Notification.permission === "granted") {
-      new Notification(title, { body, icon: '/logo.png' });
-    } else if ("Notification" in window && Notification.permission !== "denied") {
-      Notification.requestPermission().then(permission => {
-        if (permission === "granted") {
-          new Notification(title, { body, icon: '/logo.png' });
-        }
-      });
-    }
-  };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -419,7 +309,7 @@ export default function TimerPage() {
       )}
 
       {/* 每日目标进度 */}
-      {config && config.showDailyGoal && stats && stats.todayCount < (config.dailyGoal || 8) && (
+      {config && config.showDailyGoal && stats && stats.todayCount < (config.dailyGoal || 4) && (
         <div style={{
           width: '100%',
           marginTop: '16px',
@@ -437,7 +327,7 @@ export default function TimerPage() {
             <div
               className="progress-fill"
               style={{
-                width: `${Math.min(100, (stats.todayCount / (config.dailyGoal || 8)) * 100)}%`,
+                width: `${Math.min(100, (stats.todayCount / (config.dailyGoal || 4)) * 100)}%`,
               }}
             />
           </div>
@@ -447,7 +337,7 @@ export default function TimerPage() {
             color: 'var(--primary-color)',
             flexShrink: 0,
           }}>
-            {stats.todayCount}/{config.dailyGoal || 8}
+            {stats.todayCount}/{config.dailyGoal || 4}
           </span>
         </div>
       )}

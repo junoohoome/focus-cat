@@ -228,11 +228,6 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
       const remaining = Math.max(0, Math.floor((targetEndTime - now) / 1000));
       set({ remainingSeconds: remaining });
       emitTimerTick(remaining);
-
-      // 计时归零 → 触发完成事件（全局，不依赖页面组件）
-      if (remaining === 0) {
-        emit("timer-complete", { type });
-      }
     }
   },
 

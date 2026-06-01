@@ -42,10 +42,8 @@ Thumbs.db
 # Git worktrees
 .worktrees/
 
-# AI tool generated docs (keep specs and plans)
-docs/*
-!docs/superpowers
-docs/superpowers/*
-!docs/superpowers/specs
-!docs/superpowers/plans
+# Docs
+docs/
+
+# AI tools
 .superpowers/

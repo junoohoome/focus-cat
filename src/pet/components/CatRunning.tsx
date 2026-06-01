@@ -1,6 +1,6 @@
 export default function CatRunning() {
   return (
-    <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width="128" height="128" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
       <g className="cat-running-body">
         {/* Left ear */}
         <path d="M18 28 L14 12 L26 22" stroke="#333" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />

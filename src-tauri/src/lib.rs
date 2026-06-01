@@ -177,7 +177,7 @@ pub fn run() {
                 .decorations(false)
                 .always_on_top(true)
                 .skip_taskbar(true)
-                .inner_size(120.0, 120.0)
+                .inner_size(180.0, 180.0)
                 .resizable(false)
                 .shadow(false)
                 .visible(false)

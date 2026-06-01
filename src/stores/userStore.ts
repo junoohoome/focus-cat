@@ -19,6 +19,8 @@ interface UserStore {
   updateConfig: (updates: Partial<UserConfig>) => Promise<void>;
   fetchStats: () => Promise<void>;
   fetchUserData: () => Promise<void>;
+  exportData: (path: string) => Promise<void>;
+  importData: (path: string) => Promise<void>;
 }
 
 // 猫咪成长阶段配置
@@ -98,6 +100,16 @@ export const useUserStore = create<UserStore>((set, get) => ({
 
   fetchUserData: async () => {
     // 用户数据从统计数据中计算
+    await get().fetchStats();
+  },
+
+  exportData: async (path: string) => {
+    await invoke("export_data", { path });
+  },
+
+  importData: async (path: string) => {
+    await invoke("import_data", { path });
+    await get().fetchConfig();
     await get().fetchStats();
   },
 }));

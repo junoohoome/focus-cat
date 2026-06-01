@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { save, open } from "@tauri-apps/plugin-dialog";
 import { useUserStore } from "../stores/userStore";
 import { useTestModeStore } from "../stores/testModeStore";
 
@@ -101,7 +102,7 @@ function SectionHeader({ emoji, title }: { emoji: string; title: string }) {
 }
 
 export default function SettingsPage() {
-  const { config, fetchConfig, updateConfig } = useUserStore();
+  const { config, fetchConfig, updateConfig, exportData, importData } = useUserStore();
   const { isTestMode, setIsTestMode } = useTestModeStore();
 
   const handleClearData = async () => {
@@ -196,6 +197,71 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* 数据管理 */}
+      <div className="card" style={cardStyle}>
+        <SectionHeader emoji="💾" title="数据管理" />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <button
+            onClick={async () => {
+              const path = await save({
+                defaultPath: `pomodoro-cat-backup-${new Date().toISOString().split('T')[0]}.json`,
+                filters: [{ name: 'JSON', extensions: ['json'] }],
+              });
+              if (path) {
+                try {
+                  await exportData(path);
+                  alert('数据导出成功！');
+                } catch (e) {
+                  alert('导出失败：' + e);
+                }
+              }
+            }}
+            style={{
+              width: '100%', padding: '10px', borderRadius: '8px',
+              background: 'rgba(76, 175, 80, 0.1)', border: '1px solid rgba(76, 175, 80, 0.3)',
+              color: '#4CAF50', fontSize: '13px', fontWeight: '500', cursor: 'pointer',
+            }}
+          >
+            导出数据
+          </button>
+          <button
+            onClick={async () => {
+              const path = await open({
+                filters: [{ name: 'JSON', extensions: ['json'] }],
+                multiple: false,
+              });
+              if (path) {
+                if (!confirm('导入将覆盖现有数据，是否继续？')) return;
+                try {
+                  await importData(path as string);
+                  alert('数据导入成功！');
+                  window.location.reload();
+                } catch (e) {
+                  alert('导入失败：' + e);
+                }
+              }
+            }}
+            style={{
+              width: '100%', padding: '10px', borderRadius: '8px',
+              background: 'rgba(33, 150, 243, 0.1)', border: '1px solid rgba(33, 150, 243, 0.3)',
+              color: '#2196F3', fontSize: '13px', fontWeight: '500', cursor: 'pointer',
+            }}
+          >
+            导入数据
+          </button>
+          <button
+            onClick={handleClearData}
+            style={{
+              width: '100%', padding: '10px', borderRadius: '8px',
+              background: 'rgba(255, 107, 107, 0.1)', border: '1px solid rgba(255, 107, 107, 0.3)',
+              color: '#FF6B6B', fontSize: '13px', fontWeight: '500', cursor: 'pointer',
+            }}
+          >
+            清除所有番茄记录
+          </button>
+        </div>
+      </div>
+
       {/* 关于 */}
       <div className="card" style={cardStyle}>
         <SectionHeader emoji="ℹ️" title="关于" />
@@ -229,25 +295,6 @@ export default function SettingsPage() {
         <p style={{ fontSize: '13px', color: '#666', margin: '0 0 12px' }}>快速测试功能，使用1分钟代替正常时长</p>
         <ToggleRow label={isTestMode ? '测试模式已开启' : '测试模式已关闭'} hint="" enabled={isTestMode}
           onChange={() => setIsTestMode(!isTestMode)} />
-        {isTestMode && (
-          <button
-            onClick={handleClearData}
-            style={{
-              width: '100%',
-              padding: '10px',
-              borderRadius: '8px',
-              background: 'rgba(255, 107, 107, 0.1)',
-              border: '1px solid rgba(255, 107, 107, 0.3)',
-              color: '#FF6B6B',
-              fontSize: '13px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            清除测试数据
-          </button>
-        )}
       </div>
     </div>
   );

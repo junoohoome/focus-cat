@@ -563,6 +563,125 @@ pub fn clear_pomodoro_records(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+// 导出数据到 JSON 文件
+#[tauri::command]
+pub fn export_data(app: AppHandle, path: String) -> Result<(), String> {
+    let (pomodoro_records, tasks) = {
+        let db_guard = app.state::<DbConnection>();
+        let conn = db_guard.0.lock().map_err(|e| format!("Failed to acquire lock: {}", e))?;
+
+        // 读取所有番茄钟记录
+        let mut pomodoro_records = Vec::new();
+        let mut stmt = conn.prepare(
+            "SELECT id, task_id, duration, type, recorded_at FROM pomodoro_records ORDER BY id"
+        ).map_err(|e| e.to_string())?;
+        let rows = stmt.query_map([], |row| {
+            Ok(PomodoroRecord {
+                id: row.get(0)?,
+                task_id: row.get(1)?,
+                duration: row.get(2)?,
+                r#type: row.get(3)?,
+                recorded_at: row.get(4)?,
+            })
+        }).map_err(|e| e.to_string())?;
+        for row in rows {
+            pomodoro_records.push(row.map_err(|e| e.to_string())?);
+        }
+
+        // 读取所有任务
+        let mut tasks = Vec::new();
+        let mut stmt = conn.prepare(
+            "SELECT id, name, target_pomodoros, completed_pomodoros, completed,
+             priority, deadline, created_at, updated_at FROM tasks ORDER BY id"
+        ).map_err(|e| e.to_string())?;
+        let rows = stmt.query_map([], |row| {
+            Ok(Task {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                target_pomodoros: row.get(2)?,
+                completed_pomodoros: row.get(3)?,
+                completed: row.get(4)?,
+                priority: row.get(5)?,
+                deadline: row.get(6)?,
+                created_at: row.get(7)?,
+                updated_at: row.get(8)?,
+            })
+        }).map_err(|e| e.to_string())?;
+        for row in rows {
+            tasks.push(row.map_err(|e| e.to_string())?);
+        }
+
+        (pomodoro_records, tasks)
+    }; // lock is released here
+
+    // 读取用户配置（在锁释放后）
+    let user_config = get_user_config(app.clone())?;
+
+    let data = ExportData {
+        version: 1,
+        exported_at: Utc::now().to_rfc3339(),
+        pomodoro_records,
+        tasks,
+        user_config,
+    };
+
+    let json = serde_json::to_string_pretty(&data).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+// 从 JSON 文件导入数据
+#[tauri::command]
+pub fn import_data(app: AppHandle, path: String) -> Result<(), String> {
+    let json = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let data: ExportData = serde_json::from_str(&json).map_err(|e| e.to_string())?;
+
+    let db_guard = app.state::<DbConnection>();
+    let conn = db_guard.0.lock().map_err(|e| format!("Failed to acquire lock: {}", e))?;
+
+    conn.execute_batch("BEGIN TRANSACTION").map_err(|e| e.to_string())?;
+
+    // 清空现有数据
+    conn.execute("DELETE FROM pomodoro_records", []).map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM tasks", []).map_err(|e| e.to_string())?;
+
+    // 导入任务
+    for task in &data.tasks {
+        conn.execute(
+            "INSERT INTO tasks (id, name, target_pomodoros, completed_pomodoros, completed, priority, deadline, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            params![task.id, task.name, task.target_pomodoros, task.completed_pomodoros,
+                    task.completed, task.priority, task.deadline, task.created_at, task.updated_at],
+        ).map_err(|e| e.to_string())?;
+    }
+
+    // 导入番茄钟记录
+    for record in &data.pomodoro_records {
+        conn.execute(
+            "INSERT INTO pomodoro_records (id, task_id, duration, type, recorded_at)
+             VALUES (?, ?, ?, ?, ?)",
+            params![record.id, record.task_id, record.duration, record.r#type, record.recorded_at],
+        ).map_err(|e| e.to_string())?;
+    }
+
+    // 导入用户配置
+    let uc = &data.user_config;
+    conn.execute(
+        "UPDATE user_config SET focus_duration = ?, break_duration = ?,
+         enable_notifications = ?, enable_sound = ?, theme = ?,
+         long_break_duration = ?, auto_start = ?, daily_goal = ?, auto_launch = ?
+         WHERE id = 1",
+        params![uc.focus_duration, uc.break_duration, uc.enable_notifications,
+                uc.enable_sound, uc.theme, uc.long_break_duration, uc.auto_start,
+                uc.daily_goal, uc.auto_launch],
+    ).map_err(|e| e.to_string())?;
+
+    conn.execute_batch("COMMIT").map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
 // 更新菜单栏标题（显示计时时间或恢复图标）
 #[tauri::command]
 pub fn update_tray_title(state: State<TrayIconState>, title: String) -> Result<(), String> {

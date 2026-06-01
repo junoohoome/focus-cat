@@ -215,3 +215,14 @@ pub struct TaskReportItem {
     pub focus_minutes: i32,
     pub is_completed: bool,
 }
+
+// 数据导出结构
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportData {
+    pub version: i32,
+    pub exported_at: String,
+    pub pomodoro_records: Vec<PomodoroRecord>,
+    pub tasks: Vec<Task>,
+    pub user_config: UserConfig,
+}

@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS cat_state (
 | 命令 | 参数 | 返回 | 作用 |
 |------|------|------|------|
 | `get_cat_state` | 无 | `CatState` | 获取猫咪状态（先执行惰性新陈代谢计算） |
-| `feed_cat` | 无 | `CatState` | 消耗 1 个库存罐头，`weight += 0.3`，更新 `last_fed_at` |
+| `feed_cat` | 无 | `CatState` | 消耗 1 个库存罐头，`weight = min(10.0, weight + 0.3)`，更新 `last_fed_at` |
 | `add_food` | 无 | `CatState` | `food_inventory += 1` |
 
 ### 1.3 Rust 结构体

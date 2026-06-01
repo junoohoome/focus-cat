@@ -73,6 +73,26 @@ pub fn init_db(conn: &Connection) -> SqliteResult<()> {
         [],
     )?;
 
+    // 猫咪状态表
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS cat_state (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            weight REAL NOT NULL DEFAULT 2.0,
+            food_inventory INTEGER NOT NULL DEFAULT 0,
+            last_fed_at TEXT NOT NULL,
+            last_metabolism_at TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )",
+        [],
+    )?;
+
+    // 初始化默认猫咪状态
+    conn.execute(
+        "INSERT OR IGNORE INTO cat_state (id, weight, food_inventory, last_fed_at, last_metabolism_at)
+         VALUES (1, 2.0, 0, datetime('now'), datetime('now'))",
+        [],
+    )?;
+
     // 初始化默认用户配置
     conn.execute(
         "INSERT OR IGNORE INTO user_config (id) VALUES (1)",
@@ -246,4 +266,14 @@ pub struct ExportData {
     pub pomodoro_records: Vec<PomodoroRecord>,
     pub tasks: Vec<Task>,
     pub user_config: UserConfig,
+}
+
+// 猫咪状态
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CatState {
+    pub weight: f64,
+    pub food_inventory: i32,
+    pub last_fed_at: String,
+    pub last_metabolism_at: String,
 }

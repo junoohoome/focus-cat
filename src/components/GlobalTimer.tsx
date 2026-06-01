@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useTimerStore } from "../stores/timerStore";
 import { useTaskStore } from "../stores/taskStore";
 import { useUserStore } from "../stores/userStore";
@@ -6,47 +6,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { sendNotification as sendTauriNotification } from "@tauri-apps/plugin-notification";
 import { emit } from "@tauri-apps/api/event";
 import { playCompleteSound, playBreakEndSound } from "../lib/sound";
-
-/**
- * 全局计时器组件
- * 挂载在 App 顶层，始终存活。
- * 1. 每秒 tick 驱动倒计时
- * 2. 通过 Zustand subscribe 监听 remainingSeconds 归零，触发完成逻辑
- *    → 不依赖任何页面组件，不受页面切换/最小化影响
- */
-export default function GlobalTimer() {
-  const { state, tick } = useTimerStore();
-  const completingRef = useRef(false);
-
-  // 每秒 tick
-  useEffect(() => {
-    if (state === "running") {
-      const intervalId = setInterval(() => {
-        tick();
-      }, 1000);
-      return () => { clearInterval(intervalId); };
-    }
-  }, [state, tick]);
-
-  // 监听 remainingSeconds 归零 → 触发完成逻辑
-  useEffect(() => {
-    const unsubscribe = useTimerStore.subscribe((state, prevState) => {
-      // 检测：上一次 > 0，这一次 == 0，且之前是 running 状态
-      if (
-        prevState.remainingSeconds > 0 &&
-        state.remainingSeconds === 0 &&
-        prevState.state === "running" &&
-        !completingRef.current
-      ) {
-        completingRef.current = true;
-        handleComplete(prevState.type);
-      }
-    });
-    return unsubscribe;
-  }, []);
-
-  return null;
-}
 
 let isCompleting = false;
 
@@ -73,7 +32,17 @@ async function handleComplete(completedType: string) {
 
       // 更新任务进度
       if (currentTask) {
-        try { await useTaskStore.getState().incrementTaskProgress(currentTask.id); } catch { /* ignore */ }
+        try {
+          const newProgress = currentTask.completedPomodoros + 1;
+          const taskCompleted = newProgress >= currentTask.targetPomodoros;
+          await useTaskStore.getState().incrementTaskProgress(currentTask.id);
+          if (taskCompleted) {
+            useTaskStore.getState().setCurrentTask(null);
+            useTimerStore.getState().setTaskId(undefined);
+          }
+        } catch (e) {
+          console.error("task update failed:", e);
+        }
       }
 
       // 增加番茄钟计数
@@ -90,21 +59,10 @@ async function handleComplete(completedType: string) {
       }
 
       // 发送通知
+      const msg = todayCount >= dailyGoal ? '目标达成！今天太棒了！' : '太棒了！休息一下吧~';
+      try { await emit("pet-notification", { title: '专注完成！', body: msg }); } catch { /* ignore */ }
       if (config?.enableNotifications !== false) {
-        const msg = todayCount >= dailyGoal ? '目标达成！今天太棒了！' : '太棒了！休息一下吧~';
-        try { await emit("pet-notification", { title: '专注完成！', body: msg }); } catch { /* ignore */ }
         try { await sendTauriNotification({ title: '专注完成！', body: msg }); } catch { /* ignore */ }
-      }
-
-      // 进入休息模式
-      useTimerStore.getState().prepareBreakMode();
-
-      // 自动开始休息
-      if (config?.autoStart) {
-        const store = useTimerStore.getState();
-        const isLongBreak = store.completedPomodorosInSession >= 4;
-        const breakMins = isLongBreak ? store.storedLongBreakDuration : store.storedBreakDuration;
-        store.start(store.storedFocusDuration, breakMins, store.storedLongBreakDuration, store.storedAutoStart);
       }
     } else {
       // 休息结束
@@ -112,20 +70,77 @@ async function handleComplete(completedType: string) {
         playBreakEndSound();
       }
 
+      try { await emit("pet-notification", { title: '休息结束！', body: '准备开始新的专注吧~' }); } catch { /* ignore */ }
       if (config?.enableNotifications !== false) {
-        try { await emit("pet-notification", { title: '休息结束！', body: '准备开始新的专注吧~' }); } catch { /* ignore */ }
         try { await sendTauriNotification({ title: '休息结束！', body: '准备开始新的专注吧~' }); } catch { /* ignore */ }
       }
-
-      useTimerStore.getState().stop();
-
-      // 自动开始下一个专注
+    }
+  } catch (e) {
+    console.error("handleComplete error:", e);
+  } finally {
+    // 状态切换必须执行，否则计时器卡在 00:00
+    const store = useTimerStore.getState();
+    const config = useUserStore.getState().config;
+    if (completedType === "focus") {
+      store.prepareBreakMode();
       if (config?.autoStart) {
-        const store = useTimerStore.getState();
+        const isLongBreak = store.completedPomodorosInSession >= 4;
+        const breakMins = isLongBreak ? store.storedLongBreakDuration : store.storedBreakDuration;
+        store.start(store.storedFocusDuration, breakMins, store.storedLongBreakDuration, store.storedAutoStart);
+      }
+    } else {
+      store.stop();
+      if (config?.autoStart) {
         store.start(store.storedFocusDuration, store.storedBreakDuration, store.storedLongBreakDuration, store.storedAutoStart);
       }
     }
-  } finally {
-    completingRef.current = false;
+    isCompleting = false;
   }
+}
+
+/**
+ * 全局计时器组件
+ * 挂载在 App 顶层，始终存活。
+ */
+export default function GlobalTimer() {
+  const { state, tick } = useTimerStore();
+
+  // 每秒 tick
+  useEffect(() => {
+    if (state === "running") {
+      const intervalId = setInterval(() => {
+        tick();
+      }, 1000);
+      return () => { clearInterval(intervalId); };
+    }
+  }, [state, tick]);
+
+  // 监听 remainingSeconds 归零 → 触发完成逻辑
+  useEffect(() => {
+    const unsubscribe = useTimerStore.subscribe((state, prevState) => {
+      if (
+        prevState.remainingSeconds > 0 &&
+        state.remainingSeconds === 0 &&
+        prevState.state === "running" &&
+        !isCompleting
+      ) {
+        isCompleting = true;
+        handleComplete(prevState.type);
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  // 如果 currentTask 已完成（番茄钟已满），自动清除
+  useEffect(() => {
+    const unsubscribe = useTaskStore.subscribe((state) => {
+      if (state.currentTask?.completed) {
+        useTaskStore.getState().setCurrentTask(null);
+        useTimerStore.getState().setTaskId(undefined);
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  return null;
 }

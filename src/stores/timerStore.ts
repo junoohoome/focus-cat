@@ -106,6 +106,10 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
 
     emitTimerState("running", type, targetEndTime);
     emitTimerTick(newSeconds);
+
+    // 宠物气泡提示
+    const msg = type === "focus" ? "专注开始！加油~" : "休息开始，放松一下~";
+    try { emit("pet-notification", { title: msg, body: "" }); } catch { /* ignore */ }
   },
 
   pause: () => {

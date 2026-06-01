@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "番茄专注猫",
-        "width": 800,
-        "height": 600,
+        "width": 960,
+        "height": 680,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true
       }

@@ -2,9 +2,10 @@ type CatMood = "idle" | "running" | "paused" | "break";
 
 interface CodexCatProps {
   mood: CatMood;
+  size?: number;
 }
 
-export default function CodexCat({ mood }: CodexCatProps) {
+export default function CodexCat({ mood, size = 142 }: CodexCatProps) {
   const isRunning = mood === "running";
   const isPaused = mood === "paused";
   const isBreak = mood === "break";
@@ -12,8 +13,8 @@ export default function CodexCat({ mood }: CodexCatProps) {
   return (
     <svg
       className={`codex-cat codex-cat-${mood}`}
-      width="142"
-      height="142"
+      width={size}
+      height={size}
       viewBox="0 0 96 96"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"

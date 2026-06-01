@@ -240,8 +240,7 @@ export default function TasksPage() {
     <div style={{
       height: '1px',
       background: 'var(--border-color)',
-      marginLeft: '40px',
-      margin: '0 0 0 40px',
+      margin: '0 0 0 30px',
     }} />
   );
 
@@ -311,42 +310,57 @@ export default function TasksPage() {
     </div>
   );
 
+  // ─── Circle checkbox (shared) ───
+  const CircleCheckbox = ({
+    color,
+    filled,
+    disabled,
+    onClick,
+  }: {
+    color: string;
+    filled: boolean;
+    disabled?: boolean;
+    onClick: (e: React.MouseEvent) => void;
+  }) => (
+    <div
+      onClick={onClick}
+      style={{
+        width: '20px',
+        height: '20px',
+        borderRadius: '50%',
+        border: filled ? 'none' : `2px solid ${color}`,
+        background: filled ? color : 'transparent',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        flexShrink: 0,
+        marginTop: '1px',
+        transition: 'all 0.2s ease',
+        opacity: disabled ? 0.5 : 1,
+      }}
+    >
+      {filled && (
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      )}
+    </div>
+  );
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* ─── Top bar: Add button row ─── */}
+    <div
+      onContextMenu={(e) => e.preventDefault()}
+      style={{ display: 'flex', flexDirection: 'column', height: '100%' }}
+    >
+      {/* ─── Header: Title + Add button ─── */}
       <div style={{
         display: 'flex',
-        justifyContent: 'flex-end',
-        marginBottom: '4px',
-        marginTop: '-18px',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: '16px',
       }}>
-        <button
-          onClick={() => setIsAdding(true)}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-tertiary)',
-            fontSize: '22px',
-            fontWeight: '300',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'color 0.15s ease',
-            padding: '0',
-            lineHeight: '1',
-            marginRight: '12px',
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
-          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-tertiary)'}
-        >
-          +
-        </button>
-      </div>
-
-      {/* ─── Header ─── */}
-      <div style={{ marginBottom: '4px' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
           <h1 style={{
             fontSize: '28px',
             fontWeight: '700',
@@ -356,15 +370,44 @@ export default function TasksPage() {
           }}>
             任务
           </h1>
-          <span style={{
-            fontSize: '28px',
-            fontWeight: '700',
-            color: 'var(--accent-color)',
-            letterSpacing: '-0.5px',
-          }}>
-            {activeTasks.length}
-          </span>
+          {activeTasks.length > 0 && (
+            <span style={{
+              fontSize: '16px',
+              fontWeight: '600',
+              color: 'var(--text-tertiary)',
+            }}>
+              {activeTasks.length}
+            </span>
+          )}
         </div>
+        <button
+          onClick={() => setIsAdding(true)}
+          style={{
+            background: 'var(--accent-light)',
+            border: '1px solid var(--accent-light-border)',
+            color: 'var(--accent-color)',
+            fontSize: '18px',
+            fontWeight: '500',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.15s ease',
+            padding: '4px 12px',
+            lineHeight: '1',
+            borderRadius: '8px',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'var(--accent-color)';
+            e.currentTarget.style.color = 'white';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'var(--accent-light)';
+            e.currentTarget.style.color = 'var(--accent-color)';
+          }}
+        >
+          +
+        </button>
       </div>
 
       {/* ─── Completed summary bar ─── */}
@@ -373,15 +416,15 @@ export default function TasksPage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '6px 0 12px',
+          padding: '0 0 8px',
         }}>
-          <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
+          <span style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>
             {completedTasks.length}项已完成
           </span>
           <span
             onClick={() => setShowCompleted(!showCompleted)}
             style={{
-              fontSize: '12px',
+              fontSize: '13px',
               color: 'var(--accent-color)',
               cursor: 'pointer',
               fontWeight: '500',
@@ -401,23 +444,22 @@ export default function TasksPage() {
             <div style={{
               display: 'flex',
               alignItems: 'flex-start',
-              padding: '10px 0',
-              gap: '12px',
+              padding: '5px 0',
+              gap: '10px',
             }}>
-              {/* Filled circle */}
               <div style={{
-                width: '18px',
-                height: '18px',
+                width: '20px',
+                height: '20px',
                 borderRadius: '50%',
                 border: `2px solid var(--accent-color)`,
                 flexShrink: 0,
-                marginTop: '2px',
+                marginTop: '1px',
                 background: 'var(--accent-color)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}>
-                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="12" y1="5" x2="12" y2="19" />
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
@@ -434,7 +476,7 @@ export default function TasksPage() {
                   style={{
                     width: '100%',
                     fontSize: '14px',
-                    lineHeight: '1.4',
+                    lineHeight: '1.5',
                     color: 'var(--text-primary)',
                     background: 'transparent',
                     border: 'none',
@@ -445,7 +487,7 @@ export default function TasksPage() {
                     userSelect: 'text' as any,
                   }}
                 />
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '8px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginTop: '10px', flexWrap: 'wrap' }}>
                   <PomodoroSelector value={targetPomodoros} onChange={setTargetPomodoros} />
                   <PrioritySelector value={priority} onChange={setPriority} />
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -478,26 +520,26 @@ export default function TasksPage() {
         {activeTasks.length === 0 && !isAdding ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 0 40px' }}>
             <div style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '50%',
+              width: '56px',
+              height: '56px',
+              borderRadius: '16px',
               background: 'var(--surface-secondary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              marginBottom: '12px',
+              marginBottom: '16px',
             }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 11l3 3L22 4" />
                 <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
               </svg>
             </div>
-            <span style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>暂无任务</span>
-            <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>点击右上角 + 添加新任务</span>
+            <span style={{ fontSize: '15px', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: '500' }}>暂无任务</span>
+            <span style={{ fontSize: '13px', color: 'var(--text-tertiary)' }}>点击右上角 + 添加新任务</span>
           </div>
         ) : (
           /* ─── Active tasks ─── */
-          activeTasks.map((task, index) => {
+          activeTasks.map((task) => {
             const isCurrent = currentTask?.id === task.id;
             const isEditing = editingTaskId === task.id;
             const pColor = priorityColor(task.priority);
@@ -507,35 +549,23 @@ export default function TasksPage() {
               <div key={task.id}>
                 {isEditing ? (
                   /* ─── Inline edit mode ─── */
-                  <div data-edit-area style={{
-                    padding: '10px 0',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                      {/* Checkbox */}
-                      <div
-                        onClick={() => handleSelectTask(task)}
-                        style={{
-                          width: '18px',
-                          height: '18px',
-                          borderRadius: '50%',
-                          border: isCurrent ? 'none' : `2px solid ${pColor}`,
-                          background: isCurrent ? pColor : 'transparent',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: timerState !== 'idle' ? 'not-allowed' : 'pointer',
-                          flexShrink: 0,
-                          marginTop: '2px',
-                          transition: 'all 0.2s ease',
-                          opacity: timerState !== 'idle' ? 0.5 : 1,
-                        }}
-                      >
-                        {isCurrent && (
-                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                        )}
-                      </div>
+                  <div
+                    data-edit-area
+                    style={{
+                      margin: '2px 0',
+                      padding: '12px',
+                      background: 'var(--surface-secondary)',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-subtle)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                      <CircleCheckbox
+                        color={pColor}
+                        filled={isCurrent}
+                        disabled={timerState !== 'idle'}
+                        onClick={(e) => { e.stopPropagation(); handleSelectTask(task); }}
+                      />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <input
                           ref={editInputRef}
@@ -546,62 +576,123 @@ export default function TasksPage() {
                           style={{
                             width: '100%',
                             fontSize: '14px',
-                            lineHeight: '1.4',
+                            lineHeight: '1.5',
                             color: 'var(--text-primary)',
-                            background: 'transparent',
-                            border: 'none',
+                            background: 'var(--input-bg)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '6px',
                             outline: 'none',
                             fontFamily: 'inherit',
-                            padding: '0',
+                            padding: '6px 10px',
                             WebkitUserSelect: 'text' as any,
                             userSelect: 'text' as any,
+                            transition: 'border-color 0.15s ease',
                           }}
+                          onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent-color)'}
+                          onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'}
                         />
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '8px', flexWrap: 'wrap' }}>
-                          <PomodoroSelector value={editTargetPomodoros} onChange={setEditTargetPomodoros} />
-                          <PrioritySelector value={editPriority} onChange={setEditPriority} />
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span style={{ fontSize: '14px', color: 'var(--text-tertiary)' }}>📅</span>
-                            <input
-                              type="date"
-                              value={editDeadline}
-                              onChange={(e) => setEditDeadline(e.target.value)}
-                              min={new Date().toISOString().split('T')[0]}
-                              style={{
-                                fontSize: '14px',
-                                color: editDeadline ? 'var(--text-primary)' : 'var(--text-tertiary)',
-                                background: 'transparent',
-                                border: 'none',
-                                outline: 'none',
-                                fontFamily: 'inherit',
-                                cursor: 'pointer',
-                                padding: '0',
-                              }}
-                            />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginTop: '12px', flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: '500', letterSpacing: '0.3px' }}>番茄数</span>
+                            <PomodoroSelector value={editTargetPomodoros} onChange={setEditTargetPomodoros} />
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: '500', letterSpacing: '0.3px' }}>优先级</span>
+                            <PrioritySelector value={editPriority} onChange={setEditPriority} />
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: '500', letterSpacing: '0.3px' }}>截止日期</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <span style={{ fontSize: '14px', color: 'var(--text-tertiary)' }}>📅</span>
+                              <input
+                                type="date"
+                                value={editDeadline}
+                                onChange={(e) => setEditDeadline(e.target.value)}
+                                min={new Date().toISOString().split('T')[0]}
+                                style={{
+                                  fontSize: '13px',
+                                  color: editDeadline ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                                  background: 'var(--input-bg)',
+                                  border: '1px solid var(--border-color)',
+                                  borderRadius: '6px',
+                                  outline: 'none',
+                                  fontFamily: 'inherit',
+                                  cursor: 'pointer',
+                                  padding: '4px 8px',
+                                }}
+                              />
+                            </div>
                           </div>
                         </div>
-                        {/* Delete button */}
-                        <div
-                          onClick={() => handleDeleteTask(task.id)}
-                          style={{
-                            marginTop: '10px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            cursor: 'pointer',
-                            color: 'var(--destructive-color)',
-                            opacity: 0.7,
-                            transition: 'opacity 0.15s ease',
-                            fontSize: '12px',
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-                          onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
-                        >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="3 6 5 6 21 6" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                          </svg>
-                          删除任务
+                        {/* Action bar */}
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          marginTop: '14px',
+                          paddingTop: '12px',
+                          borderTop: '1px solid var(--border-subtle)',
+                        }}>
+                          <div
+                            onClick={() => handleDeleteTask(task.id)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              cursor: 'pointer',
+                              color: 'var(--destructive-color)',
+                              opacity: 0.6,
+                              transition: 'opacity 0.15s ease',
+                              fontSize: '13px',
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                            onMouseLeave={(e) => e.currentTarget.style.opacity = '0.6'}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                            删除
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); closeInlineEdit(); }}
+                              style={{
+                                padding: '4px 14px',
+                                fontSize: '13px',
+                                borderRadius: '6px',
+                                border: '1px solid var(--border-color)',
+                                background: 'var(--card-bg)',
+                                color: 'var(--text-secondary)',
+                                cursor: 'pointer',
+                                fontFamily: 'inherit',
+                                transition: 'background 0.15s ease',
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-secondary)'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'var(--card-bg)'}
+                            >
+                              取消
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleEditSave(); }}
+                              style={{
+                                padding: '4px 14px',
+                                fontSize: '13px',
+                                borderRadius: '6px',
+                                border: 'none',
+                                background: 'var(--accent-color)',
+                                color: 'white',
+                                cursor: 'pointer',
+                                fontFamily: 'inherit',
+                                fontWeight: '500',
+                                transition: 'opacity 0.15s ease',
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.opacity = '0.85'}
+                              onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                            >
+                              保存
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -614,60 +705,40 @@ export default function TasksPage() {
                     style={{
                       display: 'flex',
                       alignItems: 'flex-start',
-                      padding: '10px 0',
-                      gap: '12px',
+                      padding: '5px 0',
+                      gap: '10px',
                       cursor: 'pointer',
                       transition: 'background 0.15s ease',
-                      borderRadius: '4px',
+                      borderRadius: '6px',
                     }}
                     onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-secondary)'}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
-                    {/* Circle checkbox */}
-                    <div
+                    <CircleCheckbox
+                      color={pColor}
+                      filled={isCurrent}
+                      disabled={timerState !== 'idle'}
                       onClick={(e) => { e.stopPropagation(); handleSelectTask(task); }}
-                      style={{
-                        width: '18px',
-                        height: '18px',
-                        borderRadius: '50%',
-                        border: isCurrent ? 'none' : `2px solid ${pColor}`,
-                        background: isCurrent ? pColor : 'transparent',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: timerState !== 'idle' ? 'not-allowed' : 'pointer',
-                        flexShrink: 0,
-                        marginTop: '2px',
-                        transition: 'all 0.2s ease',
-                        opacity: timerState !== 'idle' ? 0.5 : 1,
-                      }}
-                    >
-                      {isCurrent && (
-                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                      )}
-                    </div>
-
+                    />
                     {/* Task content */}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{
                         fontSize: '14px',
                         color: 'var(--text-primary)',
-                        lineHeight: '1.45',
+                        lineHeight: '1.5',
                         fontWeight: '400',
                       }}>
                         {task.name}
                       </div>
                       {hasDetails && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
                           {task.targetPomodoros > 1 && (
-                            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                            <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
                               🍅 {task.completedPomodoros}/{task.targetPomodoros}
                             </span>
                           )}
                           {task.deadline && task.deadline !== 'null' && (
-                            <span style={{ fontSize: '11px', color: deadlineColor(task.deadline) }}>
+                            <span style={{ fontSize: '12px', color: deadlineColor(task.deadline) }}>
                               📅 {formatDeadline(task.deadline)}
                             </span>
                           )}
@@ -684,22 +755,32 @@ export default function TasksPage() {
 
         {/* ─── Completed tasks (shown at bottom when toggled) ─── */}
         {showCompleted && completedTasks.length > 0 && (
-          <div style={{ marginTop: '8px' }}>
-            {completedTasks.map((task, index) => (
+          <div style={{ marginTop: '10px' }}>
+            <div style={{
+              fontSize: '12px',
+              fontWeight: '600',
+              color: 'var(--text-tertiary)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              marginBottom: '4px',
+            }}>
+              已完成
+            </div>
+            {completedTasks.map((task) => (
               <div key={task.id}>
                 <div
                   onContextMenu={(e) => handleContextMenu(e, task)}
                   style={{
                     display: 'flex',
                     alignItems: 'flex-start',
-                    padding: '10px 0',
-                    gap: '12px',
+                    padding: '4px 0',
+                    gap: '10px',
                     opacity: 0.5,
                   }}
                 >
                   <div style={{
-                    width: '18px',
-                    height: '18px',
+                    width: '20px',
+                    height: '20px',
                     borderRadius: '50%',
                     border: 'none',
                     background: 'var(--success-color)',
@@ -707,7 +788,7 @@ export default function TasksPage() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
-                    marginTop: '2px',
+                    marginTop: '1px',
                   }}>
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="20 6 9 17 4 12" />
@@ -718,18 +799,18 @@ export default function TasksPage() {
                       fontSize: '14px',
                       color: 'var(--text-tertiary)',
                       textDecoration: 'line-through',
-                      lineHeight: '1.45',
+                      lineHeight: '1.5',
                     }}>
                       {task.name}
                     </span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px' }}>
                       {task.targetPomodoros > 1 && (
-                        <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                        <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
                           🍅 {task.completedPomodoros}/{task.targetPomodoros}
                         </span>
                       )}
                       {task.deadline && task.deadline !== 'null' && (
-                        <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                        <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
                           ✓ {new Date(task.deadline).getMonth() + 1}月{new Date(task.deadline).getDate()}日
                         </span>
                       )}
@@ -757,14 +838,14 @@ export default function TasksPage() {
             boxShadow: 'var(--shadow-lg)',
             padding: '4px',
             zIndex: 2000,
-            minWidth: '120px',
+            minWidth: '140px',
           }}
         >
           {!contextMenu.task.completed && (
             <div
               onClick={() => { openInlineEdit(contextMenu.task); setContextMenu(null); }}
               style={{
-                padding: '6px 12px',
+                padding: '8px 14px',
                 borderRadius: 'var(--radius-sm)',
                 cursor: 'pointer',
                 fontSize: '13px',
@@ -779,7 +860,7 @@ export default function TasksPage() {
           <div
             onClick={() => { handleDeleteTask(contextMenu.task.id); setContextMenu(null); }}
             style={{
-              padding: '6px 12px',
+              padding: '8px 14px',
               borderRadius: 'var(--radius-sm)',
               cursor: 'pointer',
               fontSize: '13px',
@@ -808,13 +889,13 @@ export default function TasksPage() {
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 1100,
-            backdropFilter: 'blur(2px)',
+            backdropFilter: 'blur(4px)',
           }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              width: '300px',
+              width: '320px',
               background: 'var(--card-bg)',
               borderRadius: 'var(--radius-lg)',
               overflow: 'hidden',
@@ -822,26 +903,37 @@ export default function TasksPage() {
               border: '1px solid var(--border-color)',
             }}
           >
-            <div style={{ padding: '20px', textAlign: 'center' }}>
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--warning-color)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 10px' }}>
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                <line x1="12" y1="9" x2="12" y2="13" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
-              <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', display: 'block', marginBottom: '6px' }}>
+            <div style={{ padding: '24px', textAlign: 'center' }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: 'var(--accent-light)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 14px',
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--warning-color)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+              </div>
+              <span style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)', display: 'block', marginBottom: '8px' }}>
                 {pendingAction?.type === 'edit' ? '编辑当前任务' : '删除当前任务'}
               </span>
-              <span style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5', display: 'block' }}>
+              <span style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.6', display: 'block' }}>
                 {pendingAction?.type === 'edit'
                   ? '该任务正在专注中，编辑不会影响已完成的番茄钟。'
                   : '该任务正在专注中，删除将清除进度和关联数据。'}
               </span>
             </div>
-            <div style={{ padding: '12px 20px 20px', display: 'flex', gap: '8px' }}>
-              <button className="btn btn-secondary" onClick={() => setShowConfirmDialog(false)} style={{ flex: 1, height: '34px', fontSize: '13px' }}>
+            <div style={{ padding: '0 24px 24px', display: 'flex', gap: '10px' }}>
+              <button className="btn btn-secondary" onClick={() => setShowConfirmDialog(false)} style={{ flex: 1, height: '36px', fontSize: '13px' }}>
                 取消
               </button>
-              <button className="btn btn-primary" onClick={confirmAction} style={{ flex: 1, height: '34px', fontSize: '13px' }}>
+              <button className="btn btn-primary" onClick={confirmAction} style={{ flex: 1, height: '36px', fontSize: '13px' }}>
                 确认
               </button>
             </div>
@@ -860,7 +952,7 @@ export default function TasksPage() {
             transform: 'translateX(-50%)',
             background: 'var(--text-primary)',
             color: 'var(--surface-bg)',
-            padding: '10px 20px',
+            padding: '10px 24px',
             borderRadius: 'var(--radius-sm)',
             fontSize: '13px',
             fontWeight: '500',

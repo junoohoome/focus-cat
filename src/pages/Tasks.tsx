@@ -20,11 +20,7 @@ const CalendarIcon = ({ size = 14, color = "currentColor" }: { size?: number; co
   </svg>
 );
 
-const ROUND_MINUTES = 30; // focusDuration(25) + breakDuration(5)
 const MAX_HOURS = 72; // 3 days
-
-const hoursToPomodoros = (hours: number): number => Math.ceil(hours * 60 / ROUND_MINUTES);
-const pomodorosToHours = (pomodoros: number): number => pomodoros * ROUND_MINUTES / 60;
 
 const formatMinutes = (totalMinutes: number): string => {
   const hours = totalMinutes / 60;
@@ -104,7 +100,7 @@ export default function TasksPage() {
     }
     await createTask({
       name: taskName,
-      targetPomodoros: hoursToPomodoros(estimatedHours),
+      durationTarget: estimatedHours,
       priority,
       deadline: deadline || null,
     });
@@ -150,7 +146,7 @@ export default function TasksPage() {
     }
     setEditingTaskId(task.id);
     setEditName(task.name);
-    setEditEstimatedHours(pomodorosToHours(task.targetPomodoros));
+    setEditEstimatedHours(task.durationTarget);
     setEditPriority(task.priority);
     setEditDeadline(task.deadline && task.deadline !== 'null' ? task.deadline.split('T')[0] : '');
   };
@@ -159,7 +155,7 @@ export default function TasksPage() {
     if (!editName.trim() || !editingTaskId) return;
     await updateTask(editingTaskId, {
       name: editName,
-      targetPomodoros: hoursToPomodoros(editEstimatedHours),
+      durationTarget: editEstimatedHours,
       priority: editPriority,
       deadline: editDeadline || undefined,
     });
@@ -219,7 +215,7 @@ export default function TasksPage() {
       const { task } = pendingAction;
       setEditingTaskId(task.id);
       setEditName(task.name);
-      setEditEstimatedHours(pomodorosToHours(task.targetPomodoros));
+      setEditEstimatedHours(task.durationTarget);
       setEditPriority(task.priority);
       setEditDeadline(task.deadline && task.deadline !== 'null' ? task.deadline.split('T')[0] : '');
     } else {
@@ -633,7 +629,7 @@ export default function TasksPage() {
             const isCurrent = currentTask?.id === task.id;
             const isEditing = editingTaskId === task.id;
             const pColor = priorityColor(task.priority);
-            const hasDetails = task.targetPomodoros > 1 || (task.deadline && task.deadline !== 'null');
+            const hasDetails = task.durationTarget > 0.5 || (task.deadline && task.deadline !== 'null');
 
             return (
               <div key={task.id}>
@@ -822,9 +818,9 @@ export default function TasksPage() {
                       </div>
                       {hasDetails && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
-                          {task.targetPomodoros > 1 && (
+                          {task.durationTarget > 0.5 && (
                             <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <TomatoIcon size={12} /> {formatMinutes(task.completedPomodoros * ROUND_MINUTES)} / {formatMinutes(task.targetPomodoros * ROUND_MINUTES)}
+                              <TomatoIcon size={12} /> {formatMinutes(task.completedMinutes)} / {formatMinutes(Math.round(task.durationTarget * 60))}
                             </span>
                           )}
                           {task.deadline && task.deadline !== 'null' && (
@@ -894,9 +890,9 @@ export default function TasksPage() {
                       {task.name}
                     </span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px' }}>
-                      {task.targetPomodoros > 1 && (
+                      {task.durationTarget > 0.5 && (
                         <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <TomatoIcon size={12} /> {formatMinutes(task.completedPomodoros * ROUND_MINUTES)}
+                          <TomatoIcon size={12} /> {formatMinutes(task.completedMinutes)}
                         </span>
                       )}
                       {task.deadline && task.deadline !== 'null' && (

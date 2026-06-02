@@ -314,7 +314,7 @@ export default function TasksPage() {
 
   // ─── Duration selector ───
   const DurationSelector = ({ hours, onChange }: { hours: number; onChange: (h: number) => void }) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
       {PRESETS.map((preset) => (
         <span
           key={preset.label}
@@ -349,7 +349,7 @@ export default function TasksPage() {
           }}
           placeholder="h"
           style={{
-            width: '42px',
+            width: '48px',
             fontSize: '13px',
             color: 'var(--text-primary)',
             background: 'var(--surface-secondary)',

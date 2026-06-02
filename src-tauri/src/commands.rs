@@ -177,7 +177,7 @@ pub fn get_user_config(app: AppHandle) -> Result<UserConfig, String> {
          enable_sound, theme, updated_at,
          COALESCE(long_break_duration, 15),
          COALESCE(auto_start, 0),
-         COALESCE(daily_goal, 8),
+         COALESCE(daily_goal, 2.0),
          COALESCE(auto_launch, 0),
          COALESCE(show_desktop_pet, 0),
          COALESCE(show_daily_goal, 1)

@@ -4,8 +4,8 @@ import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 export const tasks = sqliteTable("tasks", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
-  targetPomodoros: integer("target_pomodoros").notNull().default(1),
-  completedPomodoros: integer("completed_pomodoros").notNull().default(0),
+  durationTarget: integer("duration_target").notNull().default(0.5),
+  completedMinutes: integer("completed_minutes").notNull().default(0),
   completed: integer("completed", { mode: "boolean" }).notNull().default(false),
   priority: text("priority", { enum: ["high", "medium", "low"] }).notNull().default("medium"),
   deadline: text("deadline"),

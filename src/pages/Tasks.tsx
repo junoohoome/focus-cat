@@ -25,24 +25,6 @@ const PRESETS = [
 const hoursToPomodoros = (hours: number): number => Math.ceil(hours * 60 / ROUND_MINUTES);
 const pomodorosToHours = (pomodoros: number): number => pomodoros * ROUND_MINUTES / 60;
 
-// Format hours into human-readable string: "30min", "1h 30min", "2h", "1天", "3天 2h"
-const formatDuration = (hours: number): string => {
-  if (hours < 1) return `${hours * 60}min`;
-  if (hours < 24) {
-    const h = Math.floor(hours);
-    const m = Math.round((hours - h) * 60);
-    if (m === 0) return `${h}h`;
-    return `${h}h ${m}min`;
-  }
-  const days = Math.floor(hours / 24);
-  const remainingHours = hours % 24;
-  if (remainingHours === 0) return `${days}天`;
-  const h = Math.floor(remainingHours);
-  const m = Math.round((remainingHours - h) * 60);
-  if (m === 0) return `${days}天 ${h}h`;
-  return `${days}天 ${h}h ${m}min`;
-};
-
 const formatMinutes = (totalMinutes: number): string => {
   const hours = Math.floor(totalMinutes / 60);
   const mins = totalMinutes % 60;
@@ -333,10 +315,89 @@ export default function TasksPage() {
     </div>
   );
 
+  // ─── Wheel column for drum roller ───
+  const WheelColumn = ({ values, selectedValue, onChange, unit }: {
+    values: number[];
+    selectedValue: number;
+    onChange: (v: number) => void;
+    unit: string;
+  }) => {
+    const ITEM_H = 32;
+    const VISIBLE = 5;
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+      const el = containerRef.current;
+      if (!el) return;
+      const idx = values.indexOf(selectedValue);
+      if (idx >= 0) {
+        el.scrollTop = idx * ITEM_H;
+      }
+    }, [selectedValue, values]);
+
+    return (
+      <div style={{ position: 'relative', width: '60px' }}>
+        {/* Highlight band */}
+        <div style={{
+          position: 'absolute', top: ITEM_H * 2, left: 0, right: 0, height: ITEM_H,
+          background: 'var(--accent-light)', borderRadius: '6px', pointerEvents: 'none', zIndex: 1,
+          border: '1px solid var(--accent-light-border)',
+        }} />
+        <div
+          ref={containerRef}
+          onScroll={() => {
+            const el = containerRef.current;
+            if (!el) return;
+            const idx = Math.round(el.scrollTop / ITEM_H);
+            if (idx >= 0 && idx < values.length && values[idx] !== selectedValue) {
+              onChange(values[idx]);
+            }
+          }}
+          style={{
+            height: ITEM_H * VISIBLE,
+            overflowY: 'auto', overflowX: 'hidden',
+            scrollSnapType: 'y mandatory',
+            scrollbarWidth: 'none',
+            position: 'relative', zIndex: 2,
+          } as React.CSSProperties}
+        >
+          {/* Top padding */}
+          <div style={{ height: ITEM_H * 2, flexShrink: 0 }} />
+          {values.map((v) => (
+            <div
+              key={v}
+              onClick={() => onChange(v)}
+              style={{
+                height: ITEM_H, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                scrollSnapAlign: 'center',
+                fontSize: v === selectedValue ? '16px' : '14px',
+                fontWeight: v === selectedValue ? '600' : '400',
+                color: v === selectedValue ? 'var(--accent-color)' : 'var(--text-tertiary)',
+                cursor: 'pointer', transition: 'all 0.15s ease',
+                fontVariantNumeric: 'tabular-nums',
+                userSelect: 'none',
+              }}
+            >
+              {v}{unit}
+            </div>
+          ))}
+          {/* Bottom padding */}
+          <div style={{ height: ITEM_H * 2, flexShrink: 0 }} />
+        </div>
+      </div>
+    );
+  };
+
   // ─── Duration selector ───
   const DurationSelector = ({ hours, onChange }: { hours: number; onChange: (h: number) => void }) => {
+    const days = Math.floor(hours / 24);
+    const remainHours = hours % 24;
+    const mins = Math.round((remainHours - Math.floor(remainHours)) * 60);
+    const hrs = Math.floor(remainHours);
+
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {/* Preset quick buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
           {PRESETS.map((preset) => (
             <span
@@ -360,31 +421,38 @@ export default function TasksPage() {
             </span>
           ))}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <input
-            type="range"
-            min="0.5"
-            max={MAX_HOURS}
-            step="0.5"
-            value={hours}
-            onChange={(e) => onChange(parseFloat(e.target.value))}
-            style={{
-              flex: 1,
-              height: '4px',
-              cursor: 'pointer',
-              accentColor: 'var(--accent-color)',
+        {/* Drum roller: days + hours + minutes */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
+          padding: '4px 0',
+        }}>
+          <WheelColumn
+            values={Array.from({ length: 4 }, (_, i) => i)}
+            selectedValue={days}
+            onChange={(d) => {
+              const newHours = Math.min(d * 24 + hrs + mins / 60, MAX_HOURS);
+              onChange(newHours);
             }}
+            unit="天"
           />
-          <span style={{
-            fontSize: '13px',
-            color: 'var(--accent-color)',
-            fontWeight: '500',
-            minWidth: '52px',
-            textAlign: 'right',
-            fontVariantNumeric: 'tabular-nums',
-          }}>
-            {formatDuration(hours)}
-          </span>
+          <WheelColumn
+            values={Array.from({ length: 24 }, (_, i) => i)}
+            selectedValue={hrs}
+            onChange={(h) => {
+              const newHours = Math.min(days * 24 + h + mins / 60, MAX_HOURS);
+              onChange(newHours);
+            }}
+            unit="h"
+          />
+          <WheelColumn
+            values={[0, 30]}
+            selectedValue={mins}
+            onChange={(m) => {
+              const newHours = Math.min(days * 24 + hrs + m / 60, MAX_HOURS);
+              onChange(newHours);
+            }}
+            unit="min"
+          />
         </div>
       </div>
     );

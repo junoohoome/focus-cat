@@ -79,10 +79,10 @@ export default function ReportTab({
           border: '1px solid var(--border-color)',
           boxShadow: 'none',
         }}>
-          <span style={{ fontSize: '20px', fontWeight: '600', color: 'var(--text-primary)', display: 'block', fontVariantNumeric: 'tabular-nums' }}>
-            {count}
+          <span style={{ fontSize: '20px', fontWeight: '600', color: 'var(--accent-color)', display: 'block', fontVariantNumeric: 'tabular-nums' }}>
+            {minutes > 0 ? (minutes / 60).toFixed(1) + "h" : "0h"}
           </span>
-          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>番茄数</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>专注时长</span>
         </div>
         <div style={{
           flex: 1,
@@ -94,9 +94,9 @@ export default function ReportTab({
           boxShadow: 'none',
         }}>
           <span style={{ fontSize: '20px', fontWeight: '600', color: 'var(--text-primary)', display: 'block', fontVariantNumeric: 'tabular-nums' }}>
-            {minutes > 0 ? (minutes / 60).toFixed(1) + "h" : "0h"}
+            {count}
           </span>
-          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>专注时长</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>专注次数</span>
         </div>
         <div style={{
           flex: 1,
@@ -274,11 +274,11 @@ export default function ReportTab({
                   </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexShrink: 0 }}>
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    {task.pomodoroCount} 番茄
-                  </span>
-                  <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontVariantNumeric: 'tabular-nums' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
                     {task.focusMinutes > 0 ? (task.focusMinutes / 60).toFixed(1) + "h" : "0h"}
+                  </span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
+                    {task.sessionCount}次
                   </span>
                 </div>
               </div>

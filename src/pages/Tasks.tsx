@@ -12,15 +12,36 @@ const TomatoIcon = ({ color = "var(--accent-color)", size = 14 }: { color?: stri
 );
 
 const ROUND_MINUTES = 30; // focusDuration(25) + breakDuration(5)
+const MAX_HOURS = 72; // 3 days
 const PRESETS = [
   { label: '30min', hours: 0.5 },
   { label: '1h', hours: 1 },
   { label: '2h', hours: 2 },
   { label: '4h', hours: 4 },
+  { label: '1天', hours: 24 },
+  { label: '3天', hours: 72 },
 ] as const;
 
 const hoursToPomodoros = (hours: number): number => Math.ceil(hours * 60 / ROUND_MINUTES);
 const pomodorosToHours = (pomodoros: number): number => pomodoros * ROUND_MINUTES / 60;
+
+// Format hours into human-readable string: "30min", "1h 30min", "2h", "1天", "3天 2h"
+const formatDuration = (hours: number): string => {
+  if (hours < 1) return `${hours * 60}min`;
+  if (hours < 24) {
+    const h = Math.floor(hours);
+    const m = Math.round((hours - h) * 60);
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}min`;
+  }
+  const days = Math.floor(hours / 24);
+  const remainingHours = hours % 24;
+  if (remainingHours === 0) return `${days}天`;
+  const h = Math.floor(remainingHours);
+  const m = Math.round((remainingHours - h) * 60);
+  if (m === 0) return `${days}天 ${h}h`;
+  return `${days}天 ${h}h ${m}min`;
+};
 
 const formatMinutes = (totalMinutes: number): string => {
   const hours = Math.floor(totalMinutes / 60);
@@ -313,58 +334,61 @@ export default function TasksPage() {
   );
 
   // ─── Duration selector ───
-  const DurationSelector = ({ hours, onChange }: { hours: number; onChange: (h: number) => void }) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-      {PRESETS.map((preset) => (
-        <span
-          key={preset.label}
-          tabIndex={0}
-          onClick={() => onChange(preset.hours)}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onChange(preset.hours); }}
-          style={{
+  const DurationSelector = ({ hours, onChange }: { hours: number; onChange: (h: number) => void }) => {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+          {PRESETS.map((preset) => (
+            <span
+              key={preset.label}
+              tabIndex={0}
+              onClick={() => onChange(preset.hours)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onChange(preset.hours); }}
+              style={{
+                fontSize: '13px',
+                color: hours === preset.hours ? 'var(--accent-color)' : 'var(--text-tertiary)',
+                fontWeight: hours === preset.hours ? '600' : '400',
+                cursor: 'pointer',
+                padding: '2px 8px',
+                borderRadius: '4px',
+                background: hours === preset.hours ? 'var(--accent-light)' : 'transparent',
+                transition: 'all 0.15s ease',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {preset.label}
+            </span>
+          ))}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <input
+            type="range"
+            min="0.5"
+            max={MAX_HOURS}
+            step="0.5"
+            value={hours}
+            onChange={(e) => onChange(parseFloat(e.target.value))}
+            style={{
+              flex: 1,
+              height: '4px',
+              cursor: 'pointer',
+              accentColor: 'var(--accent-color)',
+            }}
+          />
+          <span style={{
             fontSize: '13px',
-            color: hours === preset.hours ? 'var(--accent-color)' : 'var(--text-tertiary)',
-            fontWeight: hours === preset.hours ? '600' : '400',
-            cursor: 'pointer',
-            padding: '2px 8px',
-            borderRadius: '4px',
-            background: hours === preset.hours ? 'var(--accent-light)' : 'transparent',
-            transition: 'all 0.15s ease',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {preset.label}
-        </span>
-      ))}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginLeft: '2px' }}>
-        <input
-          type="number"
-          min="0.5"
-          max="24"
-          step="0.5"
-          value={PRESETS.some(p => p.hours === hours) ? '' : hours}
-          onChange={(e) => {
-            const val = parseFloat(e.target.value);
-            if (!isNaN(val) && val >= 0.5 && val <= 24) onChange(val);
-          }}
-          placeholder="h"
-          style={{
-            width: '48px',
-            fontSize: '13px',
-            color: 'var(--text-primary)',
-            background: 'var(--surface-secondary)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '4px',
-            outline: 'none',
-            fontFamily: 'inherit',
-            padding: '2px 6px',
-            textAlign: 'center',
-          }}
-        />
-        <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>h</span>
+            color: 'var(--accent-color)',
+            fontWeight: '500',
+            minWidth: '52px',
+            textAlign: 'right',
+            fontVariantNumeric: 'tabular-nums',
+          }}>
+            {formatDuration(hours)}
+          </span>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // ─── Circle checkbox (shared) ───
   const CircleCheckbox = ({

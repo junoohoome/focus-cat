@@ -37,8 +37,15 @@ export default function TimerPage() {
     const hours = Math.floor(totalMinutes / 60);
     const mins = totalMinutes % 60;
     if (hours === 0) return `${mins}min`;
-    if (mins === 0) return `${hours}h`;
-    return `${hours}h ${mins}min`;
+    if (hours < 24) {
+      if (mins === 0) return `${hours}h`;
+      return `${hours}h ${mins}min`;
+    }
+    const days = Math.floor(hours / 24);
+    const remainH = hours % 24;
+    if (remainH === 0 && mins === 0) return `${days}天`;
+    if (mins === 0) return `${days}天 ${remainH}h`;
+    return `${days}天 ${remainH}h ${mins}min`;
   };
 
   useEffect(() => {
@@ -347,23 +354,49 @@ export default function TimerPage() {
         fontSize: '13px', fontWeight: '400', color: 'var(--text-secondary)',
         lineHeight: '1.45', wordBreak: 'break-word',
       }}>{currentTask.name}</span>
-      <div style={{ display: 'flex', gap: '3px', marginTop: '8px' }}>
-        {Array.from({ length: currentTask.targetPomodoros }, (_, i) => (
-          <div key={i} style={{
-            width: '18px', height: '18px', borderRadius: '50%',
-            border: i < currentTask.completedPomodoros
-              ? 'none'
-              : i === currentTask.completedPomodoros
-                ? '1.5px solid var(--accent-color)'
-                : '1.5px solid var(--border-color)',
-            background: i < currentTask.completedPomodoros ? 'var(--accent-color)' : 'transparent',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            {i < currentTask.completedPomodoros && (
-              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'white' }} />
-            )}
+      <div style={{ marginTop: '8px' }}>
+        {currentTask.targetPomodoros <= 8 ? (
+          // Show progress dots for short tasks (≤ 4 hours)
+          <div style={{ display: 'flex', gap: '3px' }}>
+            {Array.from({ length: currentTask.targetPomodoros }, (_, i) => (
+              <div key={i} style={{
+                width: '18px', height: '18px', borderRadius: '50%',
+                border: i < currentTask.completedPomodoros
+                  ? 'none'
+                  : i === currentTask.completedPomodoros
+                    ? '1.5px solid var(--accent-color)'
+                    : '1.5px solid var(--border-color)',
+                background: i < currentTask.completedPomodoros ? 'var(--accent-color)' : 'transparent',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {i < currentTask.completedPomodoros && (
+                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'white' }} />
+                )}
+              </div>
+            ))}
           </div>
-        ))}
+        ) : (
+          // Show progress bar for long tasks (> 4 hours)
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              flex: 1, height: '6px', borderRadius: '3px',
+              background: 'var(--border-color)', overflow: 'hidden',
+            }}>
+              <div style={{
+                height: '100%', borderRadius: '3px',
+                background: 'var(--accent-color)',
+                width: `${Math.min(100, (currentTask.completedPomodoros / currentTask.targetPomodoros) * 100)}%`,
+                transition: 'width 0.3s ease',
+              }} />
+            </div>
+            <span style={{
+              fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: '500',
+              flexShrink: 0, fontVariantNumeric: 'tabular-nums',
+            }}>
+              {Math.round((currentTask.completedPomodoros / currentTask.targetPomodoros) * 100)}%
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -26,8 +26,8 @@ pub fn init_db(conn: &Connection) -> SqliteResult<()> {
         "CREATE TABLE IF NOT EXISTS tasks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            target_pomodoros INTEGER NOT NULL DEFAULT 1,
-            completed_pomodoros INTEGER NOT NULL DEFAULT 0,
+            duration_target REAL NOT NULL DEFAULT 0.5,
+            completed_minutes INTEGER NOT NULL DEFAULT 0,
             completed INTEGER NOT NULL DEFAULT 0,
             priority TEXT NOT NULL DEFAULT 'medium',
             deadline TEXT,
@@ -107,6 +107,31 @@ pub fn init_db(conn: &Connection) -> SqliteResult<()> {
     let _ = conn.execute("ALTER TABLE user_config ADD COLUMN show_desktop_pet INTEGER NOT NULL DEFAULT 1", []);
     let _ = conn.execute("ALTER TABLE user_config ADD COLUMN show_daily_goal INTEGER NOT NULL DEFAULT 1", []);
 
+    // 迁移：时间驱动指标体系 (v1)
+    let migrated: bool = conn.query_row(
+        "SELECT COUNT(*) > 0 FROM app_state WHERE key = 'migration_time_metrics_v1'",
+        [],
+        |row| row.get(0),
+    ).unwrap_or(false);
+
+    if !migrated {
+        let _ = conn.execute_batch(
+            "ALTER TABLE tasks RENAME COLUMN target_pomodoros TO duration_target;
+             ALTER TABLE tasks RENAME COLUMN completed_pomodoros TO completed_minutes;"
+        );
+        let _ = conn.execute_batch(
+            "UPDATE tasks SET duration_target = CAST(duration_target AS REAL) * (SELECT focus_duration FROM user_config WHERE id = 1) / 60.0;
+             UPDATE tasks SET completed_minutes = completed_minutes * (SELECT focus_duration FROM user_config WHERE id = 1);"
+        );
+        let _ = conn.execute_batch(
+            "UPDATE user_config SET daily_goal = CAST(daily_goal AS REAL) * focus_duration / 60.0;"
+        );
+        let _ = conn.execute(
+            "INSERT INTO app_state (key, value) VALUES ('migration_time_metrics_v1', '1')",
+            [],
+        );
+    }
+
     Ok(())
 }
 
@@ -119,8 +144,8 @@ pub struct DbConnection(pub Mutex<Connection>);
 pub struct Task {
     pub id: i64,
     pub name: String,
-    pub target_pomodoros: i32,
-    pub completed_pomodoros: i32,
+    pub duration_target: f64,
+    pub completed_minutes: i32,
     pub completed: bool,
     pub priority: String,
     pub deadline: Option<String>,
@@ -132,7 +157,7 @@ pub struct Task {
 #[serde(rename_all = "camelCase")]
 pub struct NewTask {
     pub name: String,
-    pub target_pomodoros: i32,
+    pub duration_target: f64,
     pub priority: String,
     pub deadline: Option<String>,
 }
@@ -142,8 +167,8 @@ pub struct NewTask {
 pub struct UpdateTask {
     pub id: i64,
     pub name: Option<String>,
-    pub target_pomodoros: Option<i32>,
-    pub completed_pomodoros: Option<i32>,
+    pub duration_target: Option<f64>,
+    pub completed_minutes: Option<i32>,
     pub completed: Option<bool>,
     pub priority: Option<String>,
     pub deadline: Option<Option<String>>,
@@ -162,7 +187,7 @@ pub struct UserConfig {
     pub updated_at: String,
     pub long_break_duration: i32,
     pub auto_start: bool,
-    pub daily_goal: i32,
+    pub daily_goal: f64,
     pub auto_launch: bool,
     pub show_desktop_pet: bool,
     pub show_daily_goal: bool,
@@ -205,7 +230,7 @@ pub struct Stats {
     pub today_incomplete_tasks: i32,
     pub today_task_breakdown: Vec<TaskReportItem>,
     pub today_hourly_data: Vec<HourlySegment>,
-    pub daily_goal: i32,
+    pub daily_goal: f64,
 
     // 周报数据
     pub week_start_date: String,
@@ -252,7 +277,7 @@ pub struct HourlySegment {
 pub struct TaskReportItem {
     pub task_id: i64,
     pub task_name: String,
-    pub pomodoro_count: i32,
+    pub session_count: i32,
     pub focus_minutes: i32,
     pub is_completed: bool,
 }

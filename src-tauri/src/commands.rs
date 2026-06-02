@@ -22,7 +22,7 @@ pub fn get_tasks(
     let offset = (page - 1) * page_size;
 
     let mut stmt = conn.prepare(
-        "SELECT id, name, target_pomodoros, completed_pomodoros, completed,
+        "SELECT id, name, duration_target, completed_minutes, completed,
          priority, deadline, created_at, updated_at
          FROM tasks WHERE completed = ?
          ORDER BY priority DESC, created_at DESC
@@ -33,8 +33,8 @@ pub fn get_tasks(
         Ok(Task {
             id: row.get(0)?,
             name: row.get(1)?,
-            target_pomodoros: row.get(2)?,
-            completed_pomodoros: row.get(3)?,
+            duration_target: row.get(2)?,
+            completed_minutes: row.get(3)?,
             completed: row.get(4)?,
             priority: row.get(5)?,
             deadline: row.get(6)?,
@@ -55,22 +55,22 @@ pub fn create_task(app: AppHandle, task: NewTask) -> Result<Task, String> {
     let conn = db_guard.0.lock().map_err(|e| format!("Failed to acquire lock: {}", e))?;
 
     conn.execute(
-        "INSERT INTO tasks (name, target_pomodoros, priority, deadline)
+        "INSERT INTO tasks (name, duration_target, priority, deadline)
          VALUES (?, ?, ?, ?)",
-        params![task.name, task.target_pomodoros, task.priority, task.deadline],
+        params![task.name, task.duration_target, task.priority, task.deadline],
     ).map_err(|e| e.to_string())?;
 
     let id = conn.last_insert_rowid();
 
     let task = conn.query_row(
-        "SELECT id, name, target_pomodoros, completed_pomodoros, completed,
+        "SELECT id, name, duration_target, completed_minutes, completed,
          priority, deadline, created_at, updated_at FROM tasks WHERE id = ?",
         params![id],
         |row| Ok(Task {
             id: row.get(0)?,
             name: row.get(1)?,
-            target_pomodoros: row.get(2)?,
-            completed_pomodoros: row.get(3)?,
+            duration_target: row.get(2)?,
+            completed_minutes: row.get(3)?,
             completed: row.get(4)?,
             priority: row.get(5)?,
             deadline: row.get(6)?,
@@ -96,12 +96,12 @@ pub fn update_task(app: AppHandle, updates: UpdateTask) -> Result<Task, String> 
         set_parts.push("name = ?");
         params.push(name.clone());
     }
-    if let Some(target) = &updates.target_pomodoros {
-        set_parts.push("target_pomodoros = ?");
+    if let Some(target) = &updates.duration_target {
+        set_parts.push("duration_target = ?");
         params.push(target.to_string());
     }
-    if let Some(completed) = &updates.completed_pomodoros {
-        set_parts.push("completed_pomodoros = ?");
+    if let Some(completed) = &updates.completed_minutes {
+        set_parts.push("completed_minutes = ?");
         params.push(completed.to_string());
     }
     if let Some(completed) = &updates.completed {
@@ -135,14 +135,14 @@ pub fn update_task(app: AppHandle, updates: UpdateTask) -> Result<Task, String> 
         .map_err(|e| e.to_string())?;
 
     let task = conn.query_row(
-        "SELECT id, name, target_pomodoros, completed_pomodoros, completed,
+        "SELECT id, name, duration_target, completed_minutes, completed,
          priority, deadline, created_at, updated_at FROM tasks WHERE id = ?",
         params![updates.id],
         |row| Ok(Task {
             id: row.get(0)?,
             name: row.get(1)?,
-            target_pomodoros: row.get(2)?,
-            completed_pomodoros: row.get(3)?,
+            duration_target: row.get(2)?,
+            completed_minutes: row.get(3)?,
             completed: row.get(4)?,
             priority: row.get(5)?,
             deadline: row.get(6)?,
@@ -214,7 +214,7 @@ pub fn update_user_config(
     theme: Option<String>,
     long_break_duration: Option<i32>,
     auto_start: Option<bool>,
-    daily_goal: Option<i32>,
+    daily_goal: Option<f64>,
     auto_launch: Option<bool>,
     show_desktop_pet: Option<bool>,
     show_daily_goal: Option<bool>,
@@ -304,7 +304,7 @@ pub fn reset_user_config(app: AppHandle) -> Result<UserConfig, String> {
                 theme = 'light',
                 long_break_duration = 15,
                 auto_start = 0,
-                daily_goal = 4,
+                daily_goal = 2.0,
                 auto_launch = 0,
                 show_desktop_pet = 1,
                 show_daily_goal = 1,
@@ -334,12 +334,11 @@ pub fn record_pomodoro(app: AppHandle, record: NewPomodoroRecord) -> Result<Pomo
     if let Some(task_id) = record.task_id {
         if record.r#type == "focus" {
             conn.execute(
-                "UPDATE tasks SET completed_pomodoros = completed_pomodoros + 1,
-                 completed = CASE WHEN completed_pomodoros + 1 >= target_pomodoros
-                 THEN 1 ELSE completed END,
+                "UPDATE tasks SET completed_minutes = completed_minutes + ?,
+                 completed = CASE WHEN (completed_minutes + ?) >= CAST(ROUND(duration_target * 60) AS INTEGER) THEN 1 ELSE completed END,
                  updated_at = datetime('now')
                  WHERE id = ?",
-                params![task_id],
+                params![record.duration, record.duration, task_id],
             ).map_err(|e| e.to_string())?;
         }
     }
@@ -366,13 +365,13 @@ fn query_task_breakdown(conn: &rusqlite::Connection, start_date: &str, end_date:
             COALESCE(pr.task_id, 0) as task_id,
             COALESCE(t.name, '未关联任务') as task_name,
             CASE WHEN COALESCE(t.completed, 0) = 1 THEN 1 ELSE 0 END as is_completed,
-            COUNT(*) as pomodoro_count,
+            COUNT(*) as session_count,
             COALESCE(SUM(pr.duration), 0) as focus_minutes
          FROM pomodoro_records pr
          LEFT JOIN tasks t ON pr.task_id = t.id
          WHERE pr.type = 'focus' AND date(pr.recorded_at, 'localtime') >= ? AND date(pr.recorded_at, 'localtime') <= ?
          GROUP BY pr.task_id
-         ORDER BY pomodoro_count DESC"
+         ORDER BY session_count DESC"
     ).map_err(|e| e.to_string())?;
 
     let rows = stmt.query_map(params![start_date, end_date], |row| {
@@ -380,7 +379,7 @@ fn query_task_breakdown(conn: &rusqlite::Connection, start_date: &str, end_date:
             task_id: row.get(0)?,
             task_name: row.get(1)?,
             is_completed: row.get::<_, i32>(2)? != 0,
-            pomodoro_count: row.get(3)?,
+            session_count: row.get(3)?,
             focus_minutes: row.get(4)?,
         })
     }).map_err(|e| e.to_string())?;
@@ -575,11 +574,11 @@ pub fn get_stats(app: AppHandle) -> Result<Stats, String> {
         .filter(|item| item.task_id > 0 && !item.is_completed).count() as i32;
 
     // === 读取每日目标 ===
-    let daily_goal: i32 = conn.query_row(
-        "SELECT COALESCE(daily_goal, 4) FROM user_config WHERE id = 1",
+    let daily_goal: f64 = conn.query_row(
+        "SELECT COALESCE(daily_goal, 2.0) FROM user_config WHERE id = 1",
         [],
         |row| row.get(0),
-    ).unwrap_or(4);
+    ).unwrap_or(2.0);
 
     Ok(Stats {
         today_count,
@@ -675,15 +674,15 @@ pub fn export_data(app: AppHandle, path: String) -> Result<(), String> {
         // 读取所有任务
         let mut tasks = Vec::new();
         let mut stmt = conn.prepare(
-            "SELECT id, name, target_pomodoros, completed_pomodoros, completed,
+            "SELECT id, name, duration_target, completed_minutes, completed,
              priority, deadline, created_at, updated_at FROM tasks ORDER BY id"
         ).map_err(|e| e.to_string())?;
         let rows = stmt.query_map([], |row| {
             Ok(Task {
                 id: row.get(0)?,
                 name: row.get(1)?,
-                target_pomodoros: row.get(2)?,
-                completed_pomodoros: row.get(3)?,
+                duration_target: row.get(2)?,
+                completed_minutes: row.get(3)?,
                 completed: row.get(4)?,
                 priority: row.get(5)?,
                 deadline: row.get(6)?,
@@ -733,9 +732,9 @@ pub fn import_data(app: AppHandle, path: String) -> Result<(), String> {
     // 导入任务
     for task in &data.tasks {
         conn.execute(
-            "INSERT INTO tasks (id, name, target_pomodoros, completed_pomodoros, completed, priority, deadline, created_at, updated_at)
+            "INSERT INTO tasks (id, name, duration_target, completed_minutes, completed, priority, deadline, created_at, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            params![task.id, task.name, task.target_pomodoros, task.completed_pomodoros,
+            params![task.id, task.name, task.duration_target, task.completed_minutes,
                     task.completed, task.priority, task.deadline, task.created_at, task.updated_at],
         ).map_err(|e| e.to_string())?;
     }

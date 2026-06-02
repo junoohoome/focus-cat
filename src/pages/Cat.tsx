@@ -3,6 +3,35 @@ import { useUserStore } from "../stores/userStore";
 import CodexCat from "../pet/components/CodexCat";
 import type { WeightState } from "../types";
 
+// SVG Icons
+const StarIcon = ({ size = 14, color = "currentColor" }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none">
+    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+  </svg>
+);
+
+const CanIcon = ({ size = 14, color = "currentColor" }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 8h16v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8z" />
+    <path d="M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2" />
+    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <line x1="10" y1="12" x2="14" y2="12" />
+  </svg>
+);
+
+const ClockIcon = ({ size = 14, color = "currentColor" }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </svg>
+);
+
+const ChevronDownIcon = ({ size = 12, color = "currentColor" }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="6 9 12 15 18 9" />
+  </svg>
+);
+
 function getWeightState(weight: number): WeightState {
   if (weight < 2.0) return { label: "骨感", icon: "🦴", mood: "不开心", color: "#FFB6C1" };
   if (weight < 4.0) return { label: "苗条", icon: "🐱", mood: "平静", color: "#98FB98" };
@@ -74,7 +103,13 @@ export default function CatPage() {
           <CodexCat mood="idle" />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginBottom: '4px' }}>
-          <span style={{ fontSize: '16px' }}>{weightState.icon}</span>
+          <span style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            background: weightState.color,
+            flexShrink: 0,
+          }} />
           <span style={{
             fontSize: '15px',
             fontWeight: '600',
@@ -82,7 +117,7 @@ export default function CatPage() {
           }}>
             {weightState.label}
           </span>
-          {isBest && <span style={{ fontSize: '12px', color: '#4CAF50' }}>⭐</span>}
+          {isBest && <StarIcon size={14} color="#4CAF50" />}
         </div>
         <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
           心情: {weightState.mood}
@@ -129,13 +164,17 @@ export default function CatPage() {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>🥫 罐头库存</span>
+            <span style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <CanIcon size={14} color="var(--text-tertiary)" /> 罐头库存
+            </span>
             <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '600', fontVariantNumeric: 'tabular-nums' }}>
               {catState.foodInventory} 个
             </span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>🕐 上次喂食</span>
+            <span style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <ClockIcon size={14} color="var(--text-tertiary)" /> 上次喂食
+            </span>
             <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>
               {formatTimeAgo(catState.lastFedAt)}
             </span>
@@ -155,13 +194,17 @@ export default function CatPage() {
             background: canFeed ? 'var(--accent-color)' : 'var(--surface-secondary)',
             color: canFeed ? 'white' : 'var(--text-tertiary)',
             transition: 'opacity 0.15s ease',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
           }}
         >
           {catState.weight >= 10.0
             ? "吃不下了喵..."
             : catState.foodInventory <= 0
               ? "没有罐头了喵..."
-              : `喂食 🥫 ×1`}
+              : (<><CanIcon size={15} color="white" /> 喂食 ×1</>)}
         </button>
       </div>
 
@@ -189,7 +232,9 @@ export default function CatPage() {
           }}
         >
           <span>喂养指南</span>
-          <span style={{ fontSize: '12px', transform: showGuide ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
+          <span style={{ transform: showGuide ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', display: 'flex' }}>
+            <ChevronDownIcon size={14} color="var(--text-tertiary)" />
+          </span>
         </button>
         {showGuide && (
           <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -212,9 +257,11 @@ export default function CatPage() {
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginRight: '8px', lineHeight: '1.6' }}>•</span>
+              <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginRight: '8px', lineHeight: '1.6', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <StarIcon size={12} color="#4CAF50" />
+              </span>
               <span style={{ flex: 1, fontSize: '12px', color: '#4CAF50', lineHeight: '1.6', fontWeight: '500' }}>
-                ⭐ 保持在 4-6kg 是最佳状态
+                保持在 4-6kg 是最佳状态
               </span>
             </div>
           </div>

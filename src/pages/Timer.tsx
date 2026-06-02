@@ -34,18 +34,8 @@ export default function TimerPage() {
   const ROUND_MINUTES = 30; // focusDuration(25) + breakDuration(5)
 
   const formatMinutes = (totalMinutes: number): string => {
-    const hours = Math.floor(totalMinutes / 60);
-    const mins = totalMinutes % 60;
-    if (hours === 0) return `${mins}min`;
-    if (hours < 24) {
-      if (mins === 0) return `${hours}h`;
-      return `${hours}h ${mins}min`;
-    }
-    const days = Math.floor(hours / 24);
-    const remainH = hours % 24;
-    if (remainH === 0 && mins === 0) return `${days}天`;
-    if (mins === 0) return `${days}天 ${remainH}h`;
-    return `${days}天 ${remainH}h ${mins}min`;
+    const hours = totalMinutes / 60;
+    return `${hours}h`;
   };
 
   useEffect(() => {

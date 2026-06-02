@@ -13,24 +13,13 @@ const TomatoIcon = ({ color = "var(--accent-color)", size = 14 }: { color?: stri
 
 const ROUND_MINUTES = 30; // focusDuration(25) + breakDuration(5)
 const MAX_HOURS = 72; // 3 days
-const PRESETS = [
-  { label: '0.5h', hours: 0.5 },
-  { label: '1h', hours: 1 },
-  { label: '2h', hours: 2 },
-  { label: '4h', hours: 4 },
-  { label: '24h', hours: 24 },
-  { label: '72h', hours: 72 },
-] as const;
 
 const hoursToPomodoros = (hours: number): number => Math.ceil(hours * 60 / ROUND_MINUTES);
 const pomodorosToHours = (pomodoros: number): number => pomodoros * ROUND_MINUTES / 60;
 
 const formatMinutes = (totalMinutes: number): string => {
-  const hours = Math.floor(totalMinutes / 60);
-  const mins = totalMinutes % 60;
-  if (hours === 0) return `${mins}min`;
-  if (mins === 0) return `${hours}h`;
-  return `${hours}h ${mins}min`;
+  const hours = totalMinutes / 60;
+  return `${hours}h`;
 };
 
 export default function TasksPage() {
@@ -324,17 +313,13 @@ export default function TasksPage() {
     return opts;
   })();
 
-  const formatHourLabel = (h: number): string => {
-    return `${h}h`;
-  };
 
-  // ─── Duration selector ───
+  // ─── Duration selector (compact wheel) ───
   const DurationSelector = ({ hours, onChange }: { hours: number; onChange: (h: number) => void }) => {
-    const ITEM_H = 32;
-    const VISIBLE = 5;
+    const ITEM_H = 26;
+    const VISIBLE = 3;
     const wheelRef = useRef<HTMLDivElement>(null);
 
-    // Find closest option for initial snap
     const closestIndex = DURATION_OPTIONS.reduce((best, v, i) =>
       Math.abs(v - hours) < Math.abs(DURATION_OPTIONS[best] - hours) ? i : best
     , 0);
@@ -347,97 +332,60 @@ export default function TasksPage() {
     }, [closestIndex]);
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {/* Preset quick buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-          {PRESETS.map((preset) => (
-            <span
-              key={preset.label}
-              tabIndex={0}
+      <div style={{ position: 'relative', margin: '0 auto' }}>
+        <div style={{
+          position: 'absolute', top: ITEM_H, left: 0, right: 0, height: ITEM_H,
+          background: 'var(--accent-light)', borderRadius: '4px', pointerEvents: 'none', zIndex: 1,
+          border: '1px solid var(--accent-light-border)',
+        }} />
+        <div
+          ref={wheelRef}
+          onScroll={() => {
+            const el = wheelRef.current;
+            if (!el) return;
+            const idx = Math.round(el.scrollTop / ITEM_H);
+            if (idx >= 0 && idx < DURATION_OPTIONS.length) {
+              onChange(DURATION_OPTIONS[idx]);
+            }
+          }}
+          style={{
+            height: ITEM_H * VISIBLE,
+            width: '80px',
+            overflowY: 'auto', overflowX: 'hidden',
+            scrollSnapType: 'y mandatory',
+            scrollbarWidth: 'none',
+            position: 'relative', zIndex: 2,
+            margin: '0 auto',
+          } as React.CSSProperties}
+        >
+          <div style={{ height: ITEM_H, flexShrink: 0 }} />
+          {DURATION_OPTIONS.map((h) => (
+            <div
+              key={h}
               onClick={() => {
-                onChange(preset.hours);
+                onChange(h);
                 const el = wheelRef.current;
                 if (el) {
-                  const idx = DURATION_OPTIONS.indexOf(preset.hours);
+                  const idx = DURATION_OPTIONS.indexOf(h);
                   if (idx >= 0) el.scrollTop = idx * ITEM_H;
                 }
               }}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onChange(preset.hours); }}
               style={{
-                fontSize: '13px',
-                color: currentHours === preset.hours ? 'var(--accent-color)' : 'var(--text-tertiary)',
-                fontWeight: currentHours === preset.hours ? '600' : '400',
-                cursor: 'pointer',
-                padding: '2px 8px',
-                borderRadius: '4px',
-                background: currentHours === preset.hours ? 'var(--accent-light)' : 'transparent',
-                transition: 'all 0.15s ease',
+                height: ITEM_H, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                scrollSnapAlign: 'center',
+                fontSize: h === currentHours ? '14px' : '12px',
+                fontWeight: h === currentHours ? '600' : '400',
+                color: h === currentHours ? 'var(--accent-color)' : 'var(--text-tertiary)',
+                cursor: 'pointer', transition: 'all 0.15s ease',
+                fontVariantNumeric: 'tabular-nums',
+                userSelect: 'none',
                 whiteSpace: 'nowrap',
               }}
             >
-              {preset.label}
-            </span>
+              {h}h
+            </div>
           ))}
-        </div>
-        {/* Single wheel */}
-        <div style={{ position: 'relative', margin: '0 auto' }}>
-          {/* Highlight band */}
-          <div style={{
-            position: 'absolute', top: ITEM_H * 2, left: 0, right: 0, height: ITEM_H,
-            background: 'var(--accent-light)', borderRadius: '6px', pointerEvents: 'none', zIndex: 1,
-            border: '1px solid var(--accent-light-border)',
-          }} />
-          <div
-            ref={wheelRef}
-            onScroll={() => {
-              const el = wheelRef.current;
-              if (!el) return;
-              const idx = Math.round(el.scrollTop / ITEM_H);
-              if (idx >= 0 && idx < DURATION_OPTIONS.length) {
-                onChange(DURATION_OPTIONS[idx]);
-              }
-            }}
-            style={{
-              height: ITEM_H * VISIBLE,
-              width: '120px',
-              overflowY: 'auto', overflowX: 'hidden',
-              scrollSnapType: 'y mandatory',
-              scrollbarWidth: 'none',
-              position: 'relative', zIndex: 2,
-              margin: '0 auto',
-            } as React.CSSProperties}
-          >
-            {/* Top padding */}
-            <div style={{ height: ITEM_H * 2, flexShrink: 0 }} />
-            {DURATION_OPTIONS.map((h) => (
-              <div
-                key={h}
-                onClick={() => {
-                  onChange(h);
-                  const el = wheelRef.current;
-                  if (el) {
-                    const idx = DURATION_OPTIONS.indexOf(h);
-                    if (idx >= 0) el.scrollTop = idx * ITEM_H;
-                  }
-                }}
-                style={{
-                  height: ITEM_H, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  scrollSnapAlign: 'center',
-                  fontSize: h === currentHours ? '15px' : '13px',
-                  fontWeight: h === currentHours ? '600' : '400',
-                  color: h === currentHours ? 'var(--accent-color)' : 'var(--text-tertiary)',
-                  cursor: 'pointer', transition: 'all 0.15s ease',
-                  fontVariantNumeric: 'tabular-nums',
-                  userSelect: 'none',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {formatHourLabel(h)}
-              </div>
-            ))}
-            {/* Bottom padding */}
-            <div style={{ height: ITEM_H * 2, flexShrink: 0 }} />
-          </div>
+          <div style={{ height: ITEM_H, flexShrink: 0 }} />
         </div>
       </div>
     );

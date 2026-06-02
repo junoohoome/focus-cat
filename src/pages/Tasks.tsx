@@ -14,12 +14,12 @@ const TomatoIcon = ({ color = "var(--accent-color)", size = 14 }: { color?: stri
 const ROUND_MINUTES = 30; // focusDuration(25) + breakDuration(5)
 const MAX_HOURS = 72; // 3 days
 const PRESETS = [
-  { label: '30min', hours: 0.5 },
+  { label: '0.5h', hours: 0.5 },
   { label: '1h', hours: 1 },
   { label: '2h', hours: 2 },
   { label: '4h', hours: 4 },
-  { label: '1天', hours: 24 },
-  { label: '3天', hours: 72 },
+  { label: '24h', hours: 24 },
+  { label: '72h', hours: 72 },
 ] as const;
 
 const hoursToPomodoros = (hours: number): number => Math.ceil(hours * 60 / ROUND_MINUTES);
@@ -325,20 +325,7 @@ export default function TasksPage() {
   })();
 
   const formatHourLabel = (h: number): string => {
-    if (h < 1) return `${h * 60}min`;
-    if (h < 24) {
-      const hrs = Math.floor(h);
-      const mins = Math.round((h - hrs) * 60);
-      if (mins === 0) return `${hrs}h`;
-      return `${hrs}h ${mins}min`;
-    }
-    const days = Math.floor(h / 24);
-    const remain = h % 24;
-    if (remain === 0) return `${days}天`;
-    const hrs = Math.floor(remain);
-    const mins = Math.round((remain - hrs) * 60);
-    if (mins === 0) return `${days}天 ${hrs}h`;
-    return `${days}天 ${hrs}h ${mins}min`;
+    return `${h}h`;
   };
 
   // ─── Duration selector ───

@@ -241,7 +241,7 @@ export default function CatPage() {
             <div style={{ display: 'flex', alignItems: 'flex-start' }}>
               <span style={{ fontSize: '13px', color: 'var(--text-tertiary)', marginRight: '8px', lineHeight: '1.6' }}>•</span>
               <span style={{ flex: 1, fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                完成一个番茄钟 → 获得 1 个罐头
+                完成一次专注 → 获得 1 个罐头
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-start' }}>

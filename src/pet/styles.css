@@ -7,7 +7,7 @@ html, body {
   user-select: none;
   -webkit-user-select: none;
   width: 180px;
-  height: 230px;
+  height: 250px;
 }
 
 /* Cat container */
@@ -17,7 +17,7 @@ html, body {
   align-items: center;
   justify-content: flex-end;
   width: 180px;
-  height: 230px;
+  height: 250px;
   cursor: grab;
   filter: drop-shadow(0 10px 12px rgba(62, 34, 24, 0.18));
   position: relative;
@@ -110,7 +110,7 @@ html.animations-paused .pet-bubble {
 /* 喂食浮层 */
 .pet-feed-overlay {
   position: absolute;
-  top: 0;
+  top: 4px;
   left: 0;
   right: 0;
   background: rgba(255, 248, 240, 0.97);

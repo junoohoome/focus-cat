@@ -169,7 +169,7 @@ pub fn run() {
                 .decorations(false)
                 .always_on_top(true)
                 .skip_taskbar(true)
-                .inner_size(180.0, 230.0)
+                .inner_size(180.0, 250.0)
                 .resizable(false)
                 .shadow(false)
                 .visible(false)
@@ -185,8 +185,12 @@ pub fn run() {
             let app_handle = app.handle().clone();
             app.listen("pet-clicked", move |_| {
                 if let Some(window) = app_handle.get_webview_window("main") {
-                    let _ = window.show();
-                    let _ = window.set_focus();
+                    if window.is_visible().unwrap_or(false) {
+                        let _ = window.minimize();
+                    } else {
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
                 }
             });
 

@@ -1,6 +1,6 @@
 <div align="center">
 
-  # 🍅 Pomodoro Cat
+  # 🐱 Focus Cat
 
   **A cute cross-platform Pomodoro timer that gamifies productivity through virtual cat nurturing**
 
@@ -24,7 +24,7 @@
 - 🎨 **Clean & Beautiful UI** - macOS-native style modern interface
 - 🖥️ **Cross-platform Support** - Works on macOS, Windows, and Linux
 - 📱 **macOS Menu Bar Icon** - Quick access from menu bar (macOS only)
-- 🐾 **Desktop Pet** - Show a cute cat on your desktop that responds to timer state
+- 🐾 **Desktop Pet** - A cute cat on your desktop; right-click to feed, double-click to toggle window
 - ⌨️ **Keyboard Shortcuts** - Space to start/pause, Esc to abandon
 - 💾 **Local Data Storage** - All data stored locally in SQLite database
 - 🧪 **Test Mode** - Enable 1-minute quick test mode for development
@@ -146,6 +146,14 @@ npm run tauri build
 3. **View Cat** - Feed your cat on "Cat" page and maintain optimal weight (4-6kg)
 4. **Statistics** - View focus records and charts on "Stats" page
 5. **Settings** - Customize focus/break duration, theme, and other preferences
+
+### 🐾 Desktop Pet Interactions
+
+| Action | Function |
+|--------|----------|
+| Double-click pet | Show / minimize main window |
+| Right-click pet | Open feed menu |
+| Drag pet | Move pet position |
 
 ### ⌨️ Keyboard Shortcuts
 

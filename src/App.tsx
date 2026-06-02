@@ -123,14 +123,14 @@ function App() {
             }}>
               <img
                 src="/logo.png"
-                alt="番茄专注猫"
+                alt="专注猫"
                 style={{
                   width: '28px',
                   height: '28px',
                   objectFit: 'contain'
                 }}
               />
-              <span>番茄专注猫</span>
+              <span>专注猫</span>
             </h1>
           </div>
 

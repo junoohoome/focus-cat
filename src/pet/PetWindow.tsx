@@ -34,6 +34,9 @@ export default function PetWindow() {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const targetEndTimeRef = useRef<number | null>(null);
   const feedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stateRef = useRef<PetState>(state);
+  stateRef.current = state;
+  const completionEmittedRef = useRef(false);
 
   const fetchCatState = useCallback(async () => {
     try {
@@ -57,6 +60,8 @@ export default function PetWindow() {
       setState(event.payload.state);
       targetEndTimeRef.current = event.payload.targetEndTime;
       if (event.payload.targetEndTime) {
+        // 新计时开始，重置完成标记
+        completionEmittedRef.current = false;
         const remaining = Math.max(0, Math.floor((event.payload.targetEndTime - Date.now()) / 1000));
         setRemaining(remaining);
       }
@@ -79,6 +84,24 @@ export default function PetWindow() {
       unlistenNotification.then((fn) => fn());
       if (timerRef.current) clearTimeout(timerRef.current);
     };
+  }, []);
+
+  // 独立倒计时：即使主窗口最小化也能正常计时
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      const target = targetEndTimeRef.current;
+      if (target !== null && stateRef.current !== "idle") {
+        const remaining = Math.max(0, Math.floor((target - Date.now()) / 1000));
+        setRemaining(remaining);
+        // 倒计时结束：通知主窗口触发完成逻辑
+        if (remaining === 0 && !completionEmittedRef.current) {
+          completionEmittedRef.current = true;
+          emit("pet-timer-expired").catch(() => {});
+        }
+      }
+    }, 1000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
   // 窗口不可见时暂停 CSS 动画，减少 CPU 开销
@@ -113,38 +136,46 @@ export default function PetWindow() {
     };
   }, [fetchCatState, showSpeechBubble]);
 
-  // Left click → toggle feed overlay
-  const handleClick = useCallback(async (e: React.MouseEvent) => {
+  // 关闭喂食浮层
+  const closeFeed = useCallback(() => {
+    setShowFeed(false);
+    if (feedTimerRef.current) {
+      clearTimeout(feedTimerRef.current);
+      feedTimerRef.current = null;
+    }
+  }, []);
+
+  // Double click → toggle main window show/minimize
+  const handleDoubleClick = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (showFeed) {
-      setShowFeed(false);
+      closeFeed();
       return;
     }
-
-    const cs = await fetchCatState();
-    if (cs) {
-      setShowFeed(true);
-      if (feedTimerRef.current) clearTimeout(feedTimerRef.current);
-      feedTimerRef.current = setTimeout(() => setShowFeed(false), 5000);
+    try {
+      await emit("pet-clicked");
+    } catch {
+      // ignore
     }
-  }, [showFeed, fetchCatState]);
+  }, [showFeed, closeFeed]);
 
-  // Right click → also toggle feed overlay
+  // Right click → toggle feed overlay
   const handleContextMenu = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (showFeed) {
-      setShowFeed(false);
+      closeFeed();
       return;
     }
 
     const cs = await fetchCatState();
     if (cs) {
+      setCatState(cs);
       setShowFeed(true);
       if (feedTimerRef.current) clearTimeout(feedTimerRef.current);
-      feedTimerRef.current = setTimeout(() => setShowFeed(false), 5000);
+      feedTimerRef.current = setTimeout(() => closeFeed(), 5000);
     }
-  }, [showFeed, fetchCatState]);
+  }, [showFeed, fetchCatState, closeFeed]);
 
   // Feed the cat
   const handleFeed = useCallback(async (e: React.MouseEvent) => {
@@ -161,14 +192,14 @@ export default function PetWindow() {
         showSpeechBubble(pickBubble("state_change", catState?.weight ?? 10, "full_weight"), 4000);
       }
     }
-    setShowFeed(false);
-  }, [catState, showSpeechBubble]);
+    closeFeed();
+  }, [catState, showSpeechBubble, closeFeed]);
 
   // Close feed overlay on clicking overlay background
   const handleOverlayClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    setShowFeed(false);
-  }, []);
+    closeFeed();
+  }, [closeFeed]);
 
   // Drag (only when feed overlay is not shown)
   const handleMouseDown = useCallback(async (e: React.MouseEvent) => {
@@ -207,7 +238,11 @@ export default function PetWindow() {
       className="pet-container"
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
-      onClick={handleClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (showFeed) closeFeed();
+      }}
+      onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
     >
       {/* Speech bubble */}

@@ -4,7 +4,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## 项目概述
 
-这是**番茄专注猫** (Pomodoro Cat) - 一个从微信小程序转换而来的跨平台桌面番茄钟应用，技术栈：
+这是**专注猫** (Focus Cat) - 一个从微信小程序转换而来的跨平台桌面番茄钟应用，技术栈：
 - **前端**: React 19 + TypeScript + Tailwind CSS v4
 - **后端**: Tauri 2 + Rust
 - **数据库**: SQLite (via rusqlite)

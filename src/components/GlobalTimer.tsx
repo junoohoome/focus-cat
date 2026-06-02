@@ -4,7 +4,7 @@ import { useTaskStore } from "../stores/taskStore";
 import { useUserStore } from "../stores/userStore";
 import { invoke } from "@tauri-apps/api/core";
 import { sendNotification as sendTauriNotification } from "@tauri-apps/plugin-notification";
-import { emit } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
 import { playCompleteSound, playBreakEndSound } from "../lib/sound";
 
 let isCompleting = false;
@@ -159,6 +159,14 @@ export default function GlobalTimer() {
     });
     return unsubscribe;
   }, []);
+
+  // 监听宠物窗口的计时结束事件（主窗口最小化时，宠物窗口独立检测到归零）
+  useEffect(() => {
+    const unlisten = listen("pet-timer-expired", () => {
+      tick();
+    });
+    return () => { unlisten.then(fn => fn()); };
+  }, [tick]);
 
   // 如果 currentTask 已完成（番茄钟已满），自动清除
   useEffect(() => {

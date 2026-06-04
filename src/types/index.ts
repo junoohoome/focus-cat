@@ -63,6 +63,8 @@ export interface CatState {
   foodInventory: number;
   lastFedAt: string;
   lastMetabolismAt: string;
+  foodEarnedToday: number;
+  foodEarnedDate: string;
 }
 
 // 重量状态标签

@@ -86,10 +86,14 @@ pub fn init_db(conn: &Connection) -> SqliteResult<()> {
         [],
     )?;
 
+    // 迁移：猫咪罐头每日获取追踪（必须在 INSERT 之前）
+    let _ = conn.execute("ALTER TABLE cat_state ADD COLUMN food_earned_today INTEGER NOT NULL DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE cat_state ADD COLUMN food_earned_date TEXT NOT NULL DEFAULT ''", []);
+
     // 初始化默认猫咪状态
     conn.execute(
-        "INSERT OR IGNORE INTO cat_state (id, weight, food_inventory, last_fed_at, last_metabolism_at)
-         VALUES (1, 2.0, 0, datetime('now'), datetime('now'))",
+        "INSERT OR IGNORE INTO cat_state (id, weight, food_inventory, last_fed_at, last_metabolism_at, food_earned_today, food_earned_date)
+         VALUES (1, 2.0, 0, datetime('now'), datetime('now'), 0, '')",
         [],
     )?;
 
@@ -301,4 +305,6 @@ pub struct CatState {
     pub food_inventory: i32,
     pub last_fed_at: String,
     pub last_metabolism_at: String,
+    pub food_earned_today: i32,
+    pub food_earned_date: String,
 }

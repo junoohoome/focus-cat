@@ -173,6 +173,14 @@ export default function CatPage() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              今日已获
+            </span>
+            <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500', fontVariantNumeric: 'tabular-nums' }}>
+              {catState.foodEarnedToday}/3
+            </span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <ClockIcon size={14} color="var(--text-tertiary)" /> 上次喂食
             </span>
             <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>

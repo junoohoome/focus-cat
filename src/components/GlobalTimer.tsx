@@ -35,9 +35,11 @@ async function handleComplete(completedType: string) {
         console.error("record_pomodoro failed:", e);
       }
 
-      // 添加罐头到库存
+      // 添加罐头到库存（基于今日专注时长计算）
+      let cansEarned = 0;
       try {
-        await invoke("add_food");
+        const result = await invoke<{ catState: import("../types").CatState; cansEarned: number }>("add_food");
+        cansEarned = result.cansEarned;
       } catch (e) {
         console.error("add_food failed:", e);
       }
@@ -79,9 +81,12 @@ async function handleComplete(completedType: string) {
 
       // 发送通知
       const msg = todayCount >= dailyGoal ? '目标达成！今天太棒了！' : '太棒了！休息一下吧~';
-      try { await emit("pet-notification", { title: '专注完成！获得 1 个罐头 🥫', body: msg }); } catch { /* ignore */ }
+      const foodTitle = cansEarned > 0
+        ? `专注完成！获得 ${cansEarned} 个罐头 🥫`
+        : '专注完成！今日罐头已达上限 ✨';
+      try { await emit("pet-notification", { title: foodTitle, body: msg }); } catch { /* ignore */ }
       if (config?.enableNotifications !== false) {
-        try { await sendTauriNotification({ title: '专注完成！获得 1 个罐头 🥫', body: msg }); } catch { /* ignore */ }
+        try { await sendTauriNotification({ title: foodTitle, body: msg }); } catch { /* ignore */ }
       }
     } else {
       // 休息结束

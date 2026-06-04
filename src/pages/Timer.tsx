@@ -32,14 +32,14 @@ export default function TimerPage() {
     fetchStats();
   }, [fetchConfig, fetchActiveTasks, fetchStats]);
 
-  // 配置加载后同步 store 初始时间
-  const { state: timerState } = useTimerStore();
+  // 配置加载后同步 store 初始时间（仅在专注 idle 时）
+  const { state: timerState, type: timerType } = useTimerStore();
   useEffect(() => {
-    if (config && timerState === "idle") {
+    if (config && timerState === "idle" && timerType === "focus") {
       const seconds = config.focusDuration * 60;
       useTimerStore.setState({ remainingSeconds: seconds, totalSeconds: seconds });
     }
-  }, [config?.focusDuration, timerState]);
+  }, [config?.focusDuration, timerState, timerType]);
 
   // Responsive layout
   useEffect(() => {

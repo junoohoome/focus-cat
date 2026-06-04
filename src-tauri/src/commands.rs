@@ -891,13 +891,15 @@ fn default_pet_position(app: &AppHandle) -> Result<tauri::PhysicalPosition<i32>,
 // 惰性新陈代谢计算：根据时间差扣除重量
 fn compute_metabolism(conn: &rusqlite::Connection) -> Result<CatState, String> {
     let state: CatState = conn.query_row(
-        "SELECT weight, food_inventory, last_fed_at, last_metabolism_at FROM cat_state WHERE id = 1",
+        "SELECT weight, food_inventory, last_fed_at, last_metabolism_at, COALESCE(food_earned_today, 0), COALESCE(food_earned_date, '') FROM cat_state WHERE id = 1",
         [],
         |row| Ok(CatState {
             weight: row.get(0)?,
             food_inventory: row.get(1)?,
             last_fed_at: row.get(2)?,
             last_metabolism_at: row.get(3)?,
+            food_earned_today: row.get(4)?,
+            food_earned_date: row.get(5)?,
         }),
     ).map_err(|e| e.to_string())?;
 
@@ -922,6 +924,8 @@ fn compute_metabolism(conn: &rusqlite::Connection) -> Result<CatState, String> {
             food_inventory: state.food_inventory,
             last_fed_at: state.last_fed_at,
             last_metabolism_at: chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+            food_earned_today: state.food_earned_today,
+            food_earned_date: state.food_earned_date,
         })
     } else {
         Ok(state)
@@ -966,27 +970,83 @@ pub fn feed_cat(app: AppHandle) -> Result<CatState, String> {
         food_inventory: new_inventory,
         last_fed_at: now,
         last_metabolism_at: current.last_metabolism_at,
+        food_earned_today: current.food_earned_today,
+        food_earned_date: current.food_earned_date,
     })
 }
 
 // 添加食物（番茄钟完成时调用）
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AddFoodResult {
+    pub cat_state: CatState,
+    pub cans_earned: i32,
+}
+
 #[tauri::command]
-pub fn add_food(app: AppHandle) -> Result<CatState, String> {
+pub fn add_food(app: AppHandle) -> Result<AddFoodResult, String> {
     let db_guard = app.state::<DbConnection>();
     let conn = db_guard.0.lock().map_err(|e| format!("Failed to acquire lock: {}", e))?;
 
     // 先计算新陈代谢
     let current = compute_metabolism(&conn)?;
 
-    conn.execute(
-        "UPDATE cat_state SET food_inventory = food_inventory + 1 WHERE id = 1",
+    // 检查日期，跨天则重置
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+    let mut food_earned_today = if current.food_earned_date != today {
+        0
+    } else {
+        current.food_earned_today
+    };
+
+    // 查询今日专注总时长（分钟）
+    let today_minutes: i32 = conn.query_row(
+        "SELECT COALESCE(SUM(duration), 0) FROM pomodoro_records WHERE date(recorded_at) = date('now') AND type = 'focus'",
         [],
+        |row| row.get(0),
     ).map_err(|e| e.to_string())?;
 
-    Ok(CatState {
-        weight: current.weight,
-        food_inventory: current.food_inventory + 1,
-        last_fed_at: current.last_fed_at,
-        last_metabolism_at: current.last_metabolism_at,
-    })
+    // 计算应获得的罐头数：每 25 分钟 1 个，每天最多 3 个
+    let should_earn = std::cmp::min(3, today_minutes / 25);
+    let delta = std::cmp::max(0, should_earn - food_earned_today);
+
+    if delta > 0 {
+        let new_inventory = current.food_inventory + delta;
+        food_earned_today = should_earn;
+        conn.execute(
+            "UPDATE cat_state SET food_inventory = ?, food_earned_today = ?, food_earned_date = ? WHERE id = 1",
+            params![new_inventory, food_earned_today, today],
+        ).map_err(|e| e.to_string())?;
+
+        Ok(AddFoodResult {
+            cat_state: CatState {
+                weight: current.weight,
+                food_inventory: new_inventory,
+                last_fed_at: current.last_fed_at,
+                last_metabolism_at: current.last_metabolism_at,
+                food_earned_today,
+                food_earned_date: today,
+            },
+            cans_earned: delta,
+        })
+    } else {
+        // 已达上限，更新日期以防跨天未更新
+        if current.food_earned_date != today {
+            conn.execute(
+                "UPDATE cat_state SET food_earned_date = ? WHERE id = 1",
+                params![today],
+            ).map_err(|e| e.to_string())?;
+        }
+        Ok(AddFoodResult {
+            cat_state: CatState {
+                weight: current.weight,
+                food_inventory: current.food_inventory,
+                last_fed_at: current.last_fed_at,
+                last_metabolism_at: current.last_metabolism_at,
+                food_earned_today,
+                food_earned_date: today,
+            },
+            cans_earned: 0,
+        })
+    }
 }

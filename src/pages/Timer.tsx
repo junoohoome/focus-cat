@@ -4,6 +4,7 @@ import { useTaskStore } from "../stores/taskStore";
 import { useUserStore } from "../stores/userStore";
 import { useTestModeStore } from "../stores/testModeStore";
 import CodexCat from "../pet/components/CodexCat";
+import { formatDuration } from "../lib/utils/format";
 
 // Breakpoint: main content area < 620px (window < 800px with 180px sidebar)
 const COMPACT_BREAKPOINT = 800;
@@ -30,11 +31,6 @@ export default function TimerPage() {
 
   const TEST_FOCUS_DURATION = 1;
   const TEST_BREAK_DURATION = 1;
-
-  const formatMinutes = (totalMinutes: number): string => {
-    const hours = totalMinutes / 60;
-    return `${hours}h`;
-  };
 
   useEffect(() => {
     fetchConfig();
@@ -296,15 +292,15 @@ export default function TimerPage() {
           <span style={{
             fontSize: '22px', fontWeight: '600', color: 'var(--accent-color)',
             fontVariantNumeric: 'tabular-nums', lineHeight: '1.2',
-          }}>{(stats.todayMinutes / 60).toFixed(1)}h</span>
+          }}>{stats.todayCount}次</span>
           <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>今日专注</span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
           <span style={{
             fontSize: '22px', fontWeight: '600', color: 'var(--text-primary)',
             fontVariantNumeric: 'tabular-nums', lineHeight: '1.2',
-          }}>{stats.todayCount}次</span>
-          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>专注次数</span>
+          }}>{formatDuration(stats.todayMinutes)}</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>专注时长</span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
           <span style={{
@@ -317,7 +313,7 @@ export default function TimerPage() {
           <span style={{
             fontSize: '22px', fontWeight: '600', color: 'var(--text-primary)',
             fontVariantNumeric: 'tabular-nums', lineHeight: '1.2',
-          }}>{(stats.totalMinutes / 60).toFixed(1)}h</span>
+          }}>{stats.totalCount}次</span>
           <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>累计专注</span>
         </div>
       </div>
@@ -332,7 +328,7 @@ export default function TimerPage() {
           {getPriorityLabel(currentTask.priority)}
         </span>
         <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: '500' }}>
-          {formatMinutes(currentTask.completedMinutes)} / {formatMinutes(Math.round(currentTask.durationTarget * 60))}
+          {formatDuration(currentTask.completedMinutes)} / {formatDuration(Math.round(currentTask.durationTarget * 60))}
         </span>
       </div>
       <span style={{
@@ -399,14 +395,14 @@ export default function TimerPage() {
         <span style={{ fontSize: '12px', color: 'var(--text-secondary)', flexShrink: 0 }}>进度</span>
         <div className="progress-bar" style={{ flex: 1 }}>
           <div className="progress-fill" style={{
-            width: `${Math.min(100, (stats.todayMinutes / 60 / (config.dailyGoal || 2)) * 100)}%`,
+            width: `${Math.min(100, (stats.todayCount / (config.dailyGoal || 4)) * 100)}%`,
           }} />
         </div>
         <span style={{
           fontSize: '12px', fontWeight: '500', color: 'var(--text-primary)',
           flexShrink: 0, fontVariantNumeric: 'tabular-nums',
         }}>
-          {(stats.todayMinutes / 60).toFixed(1)}h/{config.dailyGoal || 2}h
+          {stats.todayCount}/{Math.round(config.dailyGoal || 4)}次
         </span>
       </div>
     </div>
@@ -449,7 +445,7 @@ export default function TimerPage() {
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
             }}>{task.name}</span>
             <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', flexShrink: 0 }}>
-              {formatMinutes(task.completedMinutes)} / {formatMinutes(Math.round(task.durationTarget * 60))}
+              {formatDuration(task.completedMinutes)} / {formatDuration(Math.round(task.durationTarget * 60))}
             </span>
           </div>
         ))}

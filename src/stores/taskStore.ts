@@ -22,6 +22,7 @@ interface TaskStore {
   setCurrentTask: (task: Task | null) => void;
   incrementTaskProgress: (taskId: number, elapsedMinutes: number) => Promise<void>;
   completeTask: (id: number) => Promise<void>;
+  reopenTask: (id: number) => Promise<void>;
 }
 
 export const useTaskStore = create<TaskStore>((set, get) => ({
@@ -149,6 +150,20 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         activeTasks: get().activeTasks.filter((t) => t.id !== id),
         completedTasks: [{ ...task, completed: true }, ...get().completedTasks],
         currentTask: get().currentTask?.id === id ? null : get().currentTask,
+      });
+    }
+  },
+
+  reopenTask: async (id: number) => {
+    await invoke("update_task", {
+      updates: { id, completed: false },
+    });
+
+    const task = get().completedTasks.find((t) => t.id === id);
+    if (task) {
+      set({
+        completedTasks: get().completedTasks.filter((t) => t.id !== id),
+        activeTasks: [{ ...task, completed: false }, ...get().activeTasks],
       });
     }
   },

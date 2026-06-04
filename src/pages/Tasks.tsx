@@ -33,6 +33,7 @@ export default function TasksPage() {
     updateTask,
     deleteTask,
     completeTask,
+    reopenTask,
     currentTask,
     setCurrentTask,
   } = useTaskStore();
@@ -1013,6 +1014,22 @@ export default function TasksPage() {
                 标记完成
               </div>
             </>
+          )}
+          {contextMenu.task.completed && (
+            <div
+              onClick={() => { reopenTask(contextMenu.task.id); setContextMenu(null); }}
+              style={{
+                padding: '8px 14px',
+                borderRadius: 'var(--radius-sm)',
+                cursor: 'pointer',
+                fontSize: '13px',
+                color: 'var(--accent-color)',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-secondary)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            >
+              重新打开
+            </div>
           )}
           <div
             onClick={() => { handleDeleteTask(contextMenu.task.id); setContextMenu(null); }}

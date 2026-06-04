@@ -45,13 +45,7 @@ async function handleComplete(completedType: string) {
       // 更新任务进度
       if (currentTask) {
         try {
-          const newMinutes = currentTask.completedMinutes + elapsedMinutes;
-          const taskCompleted = newMinutes >= Math.round(currentTask.durationTarget * 60);
           await useTaskStore.getState().incrementTaskProgress(currentTask.id, elapsedMinutes);
-          if (taskCompleted) {
-            useTaskStore.getState().setCurrentTask(null);
-            useTimerStore.getState().setTaskId(undefined);
-          }
         } catch (e) {
           console.error("task update failed:", e);
         }
@@ -152,6 +146,7 @@ export default function GlobalTimer() {
   // 监听 remainingSeconds 归零 → 触发完成逻辑
   useEffect(() => {
     const unsubscribe = useTimerStore.subscribe((state, prevState) => {
+      // 正常完成：remainingSeconds 归零
       if (
         prevState.remainingSeconds > 0 &&
         state.remainingSeconds === 0 &&

@@ -35,8 +35,8 @@ function ToggleSwitch({ enabled, onChange }: { enabled: boolean; onChange: () =>
   );
 }
 
-function NumberInput({ label, hint, value, min, max, unit, onChange }: {
-  label: string; hint: string; value: number; min: number; max: number; unit: string;
+function NumberInput({ label, hint, value, min, max, unit, step, onChange }: {
+  label: string; hint: string; value: number; min: number; max: number; unit: string; step?: number;
   onChange: (val: number) => void;
 }) {
   return (
@@ -50,8 +50,13 @@ function NumberInput({ label, hint, value, min, max, unit, onChange }: {
           type="number"
           min={min}
           max={max}
+          step={step || 1}
           value={value}
-          onChange={(e) => onChange(parseFloat(e.target.value) || min)}
+          onChange={(e) => {
+            let val = parseFloat(e.target.value) || min;
+            if (step) val = Math.round(val / step) * step;
+            onChange(Math.min(max, Math.max(min, val)));
+          }}
           style={{
             width: '64px',
             padding: '6px 8px',
@@ -141,7 +146,7 @@ export default function SettingsPage() {
         <ToggleRow label="显示每日目标" hint="在主页显示今日目标进度条" enabled={config.showDailyGoal}
           onChange={() => updateConfig({ showDailyGoal: !config.showDailyGoal })} last={!config.showDailyGoal} />
         {config.showDailyGoal && (
-          <NumberInput label="每日专注目标" hint="每天计划专注的小时数" value={config.dailyGoal} min={0.5} max={12} unit="小时"
+          <NumberInput label="每日专注目标" hint="每天计划完成的专注次数" value={config.dailyGoal} min={1} max={12} step={1} unit="次"
             onChange={(v) => updateConfig({ dailyGoal: v })} />
         )}
         {config.showDailyGoal && (

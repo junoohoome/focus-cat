@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTaskStore } from "../stores/taskStore";
 import { useTimerStore } from "../stores/timerStore";
+import { formatDuration } from "../lib/utils/format";
 
 const TomatoIcon = ({ color = "var(--accent-color)", size = 14 }: { color?: string; size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -22,11 +23,6 @@ const CalendarIcon = ({ size = 14, color = "currentColor" }: { size?: number; co
 
 const MAX_HOURS = 72; // 3 days
 
-const formatMinutes = (totalMinutes: number): string => {
-  const hours = totalMinutes / 60;
-  return `${hours}h`;
-};
-
 export default function TasksPage() {
   const {
     activeTasks,
@@ -36,6 +32,7 @@ export default function TasksPage() {
     createTask,
     updateTask,
     deleteTask,
+    completeTask,
     currentTask,
     setCurrentTask,
   } = useTaskStore();
@@ -44,7 +41,7 @@ export default function TasksPage() {
 
   const [showCompleted, setShowCompleted] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [pendingAction, setPendingAction] = useState<{ type: 'edit' | 'delete'; task: any } | null>(null);
+  const [pendingAction, setPendingAction] = useState<{ type: 'edit' | 'delete' | 'complete'; task: any } | null>(null);
 
   // Inline add state
   const [isAdding, setIsAdding] = useState(false);
@@ -209,6 +206,15 @@ export default function TasksPage() {
     closeInlineEdit();
   };
 
+  const handleCompleteTask = async (id: number) => {
+    if (currentTask?.id === id) {
+      setPendingAction({ type: 'complete', task: null });
+      setShowConfirmDialog(true);
+      return;
+    }
+    await completeTask(id);
+  };
+
   const confirmAction = async () => {
     if (!pendingAction) return;
     if (pendingAction.type === 'edit') {
@@ -218,8 +224,10 @@ export default function TasksPage() {
       setEditEstimatedHours(task.durationTarget);
       setEditPriority(task.priority);
       setEditDeadline(task.deadline && task.deadline !== 'null' ? task.deadline.split('T')[0] : '');
-    } else {
+    } else if (pendingAction.type === 'delete') {
       await deleteTask(pendingAction.task.id);
+    } else if (pendingAction.type === 'complete') {
+      await completeTask(currentTask!.id);
     }
     setShowConfirmDialog(false);
     setPendingAction(null);
@@ -429,6 +437,48 @@ export default function TasksPage() {
       {filled && (
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="20 6 9 17 4 12" />
+        </svg>
+      )}
+    </div>
+  );
+
+  // ─── Play/Stop button (select/deselect current task) ───
+  const PlayButton = ({
+    isCurrent,
+    disabled,
+    onClick,
+  }: {
+    isCurrent: boolean;
+    disabled?: boolean;
+    onClick: (e: React.MouseEvent) => void;
+  }) => (
+    <div
+      onClick={onClick}
+      style={{
+        width: '24px',
+        height: '24px',
+        borderRadius: '50%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        flexShrink: 0,
+        marginTop: '1px',
+        transition: 'all 0.2s ease',
+        opacity: disabled ? 0.4 : 1,
+        background: isCurrent ? 'var(--accent-light)' : 'transparent',
+      }}
+    >
+      {isCurrent ? (
+        <div style={{
+          width: '10px',
+          height: '10px',
+          borderRadius: '2px',
+          background: 'var(--accent-color)',
+        }} />
+      ) : (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="var(--text-tertiary)">
+          <polygon points="5 3 19 12 5 21 5 3" />
         </svg>
       )}
     </div>
@@ -801,10 +851,10 @@ export default function TasksPage() {
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
                     <CircleCheckbox
-                      color={pColor}
-                      filled={isCurrent}
+                      color="var(--success-color)"
+                      filled={false}
                       disabled={timerState !== 'idle'}
-                      onClick={(e) => { e.stopPropagation(); handleSelectTask(task); }}
+                      onClick={(e) => { e.stopPropagation(); handleCompleteTask(task.id); }}
                     />
                     {/* Task content */}
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -820,7 +870,7 @@ export default function TasksPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
                           {task.durationTarget > 0.5 && (
                             <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <TomatoIcon size={12} /> {formatMinutes(task.completedMinutes)} / {formatMinutes(Math.round(task.durationTarget * 60))}
+                              <TomatoIcon size={12} /> {formatDuration(task.completedMinutes)} / {formatDuration(Math.round(task.durationTarget * 60))}
                             </span>
                           )}
                           {task.deadline && task.deadline !== 'null' && (
@@ -831,6 +881,11 @@ export default function TasksPage() {
                         </div>
                       )}
                     </div>
+                    <PlayButton
+                      isCurrent={isCurrent}
+                      disabled={timerState !== 'idle'}
+                      onClick={(e) => { e.stopPropagation(); handleSelectTask(task); }}
+                    />
                   </div>
                 )}
                 <Separator />
@@ -892,7 +947,7 @@ export default function TasksPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px' }}>
                       {task.durationTarget > 0.5 && (
                         <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <TomatoIcon size={12} /> {formatMinutes(task.completedMinutes)}
+                          <TomatoIcon size={12} /> {formatDuration(task.completedMinutes)}
                         </span>
                       )}
                       {task.deadline && task.deadline !== 'null' && (
@@ -928,20 +983,36 @@ export default function TasksPage() {
           }}
         >
           {!contextMenu.task.completed && (
-            <div
-              onClick={() => { openInlineEdit(contextMenu.task); setContextMenu(null); }}
-              style={{
-                padding: '8px 14px',
-                borderRadius: 'var(--radius-sm)',
-                cursor: 'pointer',
-                fontSize: '13px',
-                color: 'var(--text-primary)',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-secondary)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-            >
-              编辑
-            </div>
+            <>
+              <div
+                onClick={() => { openInlineEdit(contextMenu.task); setContextMenu(null); }}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: 'var(--radius-sm)',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  color: 'var(--text-primary)',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-secondary)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              >
+                编辑
+              </div>
+              <div
+                onClick={() => { handleCompleteTask(contextMenu.task.id); setContextMenu(null); }}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: 'var(--radius-sm)',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  color: 'var(--success-color)',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-secondary)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              >
+                标记完成
+              </div>
+            </>
           )}
           <div
             onClick={() => { handleDeleteTask(contextMenu.task.id); setContextMenu(null); }}
@@ -1007,12 +1078,14 @@ export default function TasksPage() {
                 </svg>
               </div>
               <span style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)', display: 'block', marginBottom: '8px' }}>
-                {pendingAction?.type === 'edit' ? '编辑当前任务' : '删除当前任务'}
+                {pendingAction?.type === 'edit' ? '编辑当前任务' : pendingAction?.type === 'delete' ? '删除当前任务' : '完成当前任务'}
               </span>
               <span style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.6', display: 'block' }}>
                 {pendingAction?.type === 'edit'
                   ? '该任务正在专注中，编辑不会影响已完成的番茄钟。'
-                  : '该任务正在专注中，删除将清除进度和关联数据。'}
+                  : pendingAction?.type === 'delete'
+                    ? '该任务正在专注中，删除将清除进度和关联数据。'
+                    : '该任务正在专注中，确认将标记为已完成。'}
               </span>
             </div>
             <div style={{ padding: '0 24px 24px', display: 'flex', gap: '10px' }}>

@@ -920,7 +920,9 @@ export default function TasksPage() {
                     opacity: 0.5,
                   }}
                 >
-                  <div style={{
+                  <div
+                    onClick={(e) => { e.stopPropagation(); reopenTask(task.id); }}
+                    style={{
                     width: '20px',
                     height: '20px',
                     borderRadius: '50%',
@@ -931,7 +933,12 @@ export default function TasksPage() {
                     justifyContent: 'center',
                     flexShrink: 0,
                     marginTop: '1px',
-                  }}>
+                    cursor: 'pointer',
+                    transition: 'opacity 0.15s ease',
+                  }}
+                    onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
+                    onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                  >
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>

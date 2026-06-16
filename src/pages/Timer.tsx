@@ -286,7 +286,7 @@ export default function TimerPage() {
   const renderTodayStats = () => stats && (
     <div style={cardStyle}>
       <div style={cardTitleStyle}>今日概览</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px 16px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
           <span style={{
             fontSize: '22px', fontWeight: '600', color: 'var(--accent-color)',
@@ -307,13 +307,6 @@ export default function TimerPage() {
             fontVariantNumeric: 'tabular-nums', lineHeight: '1.2',
           }}>{stats.weekStreakDays}</span>
           <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>连续天数</span>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          <span style={{
-            fontSize: '22px', fontWeight: '600', color: 'var(--text-primary)',
-            fontVariantNumeric: 'tabular-nums', lineHeight: '1.2',
-          }}>{stats.totalCount}次</span>
-          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>累计专注</span>
         </div>
       </div>
     </div>

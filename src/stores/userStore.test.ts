@@ -70,3 +70,47 @@ describe("userStore.resetConfig", () => {
     expect(mockedDisable).not.toHaveBeenCalled();
   });
 });
+
+describe("userStore.toggleAutoLaunch", () => {
+  beforeEach(() => {
+    mockedEnable.mockReset();
+    mockedDisable.mockReset();
+  });
+
+  it("invoke 失败时回滚到 prevConfig，且不调用 enable", async () => {
+    useUserStore.setState({
+      config: { ...baseConfig, autoLaunch: false },
+    });
+
+    mockInvoke({
+      // update_user_config 抛错 → 触发 catch 回滚
+      update_user_config: () => {
+        throw new Error("boom");
+      },
+    });
+
+    await useUserStore.getState().toggleAutoLaunch(true);
+
+    expect(useUserStore.getState().config?.autoLaunch).toBe(false);
+    expect(mockedEnable).not.toHaveBeenCalled();
+  });
+});
+
+describe("userStore.updateConfig", () => {
+  it("把更新字段透传给 update_user_config 并随后刷新配置", async () => {
+    useUserStore.setState({ config: { ...baseConfig } });
+
+    const updateHandler = vi.fn(() => null);
+    mockInvoke({
+      update_user_config: updateHandler,
+      get_user_config: () => ({ ...baseConfig, focusDuration: 30 }),
+    });
+
+    await useUserStore.getState().updateConfig({ focusDuration: 30 });
+
+    expect(updateHandler).toHaveBeenCalledWith(
+      expect.objectContaining({ focusDuration: 30 })
+    );
+    expect(useUserStore.getState().config?.focusDuration).toBe(30);
+  });
+});

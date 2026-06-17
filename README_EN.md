@@ -27,7 +27,6 @@
 - 🐾 **Desktop Pet** - A cute cat on your desktop; right-click to feed, double-click to toggle window
 - ⌨️ **Keyboard Shortcuts** - Space to start/pause, Esc to abandon
 - 💾 **Local Data Storage** - All data stored locally in SQLite database
-- 🧪 **Test Mode** - Enable 1-minute quick test mode for development
 
 ### 🎯 Screenshots
 
@@ -155,16 +154,6 @@ npm run tauri build
 |----------|--------|
 | `Space` | Start / Pause |
 | `Esc` | Abandon current pomodoro |
-
-### 🧪 Test Mode
-
-Enable test mode during development to reduce focus and break time to 1 minute:
-
-1. Go to "Settings" page
-2. Enable "Test Mode" toggle (visible in dev mode only)
-3. Completed pomodoros will still be recorded as standard 25 minutes
-
-⚠️ Note: Test mode is for development only and won't affect the accuracy of actual statistics.
 
 ### 🤝 Contributing
 

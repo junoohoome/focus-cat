@@ -121,7 +121,31 @@ export const useUserStore = create<UserStore>((set, get) => ({
   },
 
   resetConfig: async () => {
+    const prevConfig = get().config;
     const config = await invoke<UserConfig>("reset_user_config");
     set({ config });
+
+    // 同步有外部副作用的功能到新默认值（重置只改了 DB + store，不会触发各开关的副作用）
+    // 1) 桌面宠物窗口：默认关闭，若之前开启需隐藏窗口
+    if (prevConfig?.showDesktopPet !== config.showDesktopPet) {
+      try {
+        await invoke("toggle_pet_window", { show: config.showDesktopPet });
+      } catch (e) {
+        console.error("sync pet window after reset failed:", e);
+      }
+    }
+    // 2) 开机启动：默认关闭，若之前开启需注销系统登录项
+    if (prevConfig?.autoLaunch !== config.autoLaunch) {
+      try {
+        const { enable, disable } = await import("@tauri-apps/plugin-autostart");
+        if (config.autoLaunch) {
+          await enable();
+        } else {
+          await disable();
+        }
+      } catch (e) {
+        console.error("sync autostart after reset failed:", e);
+      }
+    }
   },
 }));

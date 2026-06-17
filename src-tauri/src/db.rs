@@ -423,4 +423,41 @@ mod tests {
             .unwrap();
         assert_eq!(name, "写论文");
     }
+
+    #[test]
+    fn migration_time_metrics_v1_converts_pomodoro_counts_to_hours() {
+        let conn = Connection::open_in_memory().unwrap();
+        // 模拟旧 schema：tasks 用 target_pomodoros / completed_pomodoros
+        conn.execute_batch(
+            "CREATE TABLE tasks (
+                id INTEGER PRIMARY KEY,
+                name TEXT,
+                target_pomodoros INTEGER NOT NULL DEFAULT 0,
+                completed_pomodoros INTEGER NOT NULL DEFAULT 0,
+                completed INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE user_config (
+                id INTEGER PRIMARY KEY DEFAULT 1,
+                focus_duration INTEGER NOT NULL DEFAULT 25
+            );
+            INSERT INTO user_config (id, focus_duration) VALUES (1, 25);
+            INSERT INTO tasks (id, name, target_pomodoros, completed_pomodoros)
+                VALUES (1, '写论文', 2, 1);",
+        )
+        .unwrap();
+
+        // 跑 init_db：含 RENAME + 换算迁移
+        init_db(&conn).unwrap();
+
+        // 2 pomodoro × 25min / 60 = 0.8333...h；1 pomodoro × 25 = 25min
+        let duration_target: f64 = conn
+            .query_row("SELECT duration_target FROM tasks WHERE id = 1", [], |r| r.get(0))
+            .unwrap();
+        let completed_minutes: i32 = conn
+            .query_row("SELECT completed_minutes FROM tasks WHERE id = 1", [], |r| r.get(0))
+            .unwrap();
+
+        assert!((duration_target - (2.0 * 25.0 / 60.0)).abs() < 1e-9);
+        assert_eq!(completed_minutes, 25);
+    }
 }

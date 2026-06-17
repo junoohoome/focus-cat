@@ -15,14 +15,9 @@ pub fn get_db_path(app: &AppHandle) -> PathBuf {
         .join(DB_NAME)
 }
 
-// 迁移旧数据库名：pomodoro-cat.db → focus-cat.db（幂等）
-// 规则：
-//   - 旧文件存在、新文件不存在 → 正常升级，重命名旧 → 新（含边车文件）
-//   - 旧、新都存在且新文件为空（无用户数据）、旧文件有数据 → 视为脏态，
-//     删除空的新文件后用旧文件迁移（避免脏态卡住迁移）
-//   - 其它情况（已迁移 / 全新安装 / 新文件已有真实数据）→ 不动
-pub fn migrate_legacy_db_name(app: &AppHandle) -> std::io::Result<()> {
-    let dir = app.path().app_data_dir().expect("Failed to get app data dir");
+// 纯逻辑核心：在指定目录执行 pomodoro-cat.db → focus-cat.db 迁移（幂等）。
+// 抽出来便于用临时目录单测；migrate_legacy_db_name 只负责取 app_data_dir 再委托。
+pub fn migrate_legacy_db_in_dir(dir: &std::path::Path) -> std::io::Result<()> {
     let new_path = dir.join(DB_NAME);
     let old_path = dir.join(LEGACY_DB_NAME);
 
@@ -48,6 +43,12 @@ pub fn migrate_legacy_db_name(app: &AppHandle) -> std::io::Result<()> {
         }
     }
     Ok(())
+}
+
+// 迁移旧数据库名（取 app 数据目录后委托给纯函数）
+pub fn migrate_legacy_db_name(app: &AppHandle) -> std::io::Result<()> {
+    let dir = app.path().app_data_dir().expect("Failed to get app data dir");
+    migrate_legacy_db_in_dir(&dir)
 }
 
 // 判断数据库是否为空（无用户数据）：tasks 与 pomodoro_records 均为空即视为空库
@@ -459,5 +460,50 @@ mod tests {
 
         assert!((duration_target - (2.0 * 25.0 / 60.0)).abs() < 1e-9);
         assert_eq!(completed_minutes, 25);
+    }
+
+    #[test]
+    fn migrate_legacy_db_renames_old_when_new_absent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path();
+
+        // 旧库存在（含一个边车文件）、新库不存在
+        std::fs::write(dir.join(LEGACY_DB_NAME), b"old").unwrap();
+        std::fs::write(dir.join(format!("{}{}", LEGACY_DB_NAME, "-wal")), b"wal").unwrap();
+
+        migrate_legacy_db_in_dir(dir).unwrap();
+
+        assert!(dir.join(DB_NAME).exists());
+        assert!(!dir.join(LEGACY_DB_NAME).exists());
+        // 边车文件也跟着迁移
+        assert!(dir.join(format!("{}{}", DB_NAME, "-wal")).exists());
+        assert!(!dir.join(format!("{}{}", LEGACY_DB_NAME, "-wal")).exists());
+    }
+
+    #[test]
+    fn migrate_legacy_db_skips_when_new_already_has_data() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path();
+
+        // 新库已含用户数据
+        {
+            let new_conn = Connection::open(dir.join(DB_NAME)).unwrap();
+            init_db(&new_conn).unwrap();
+            new_conn
+                .execute("INSERT INTO tasks (name, duration_target) VALUES ('x', 1.0)", [])
+                .unwrap();
+        }
+        // 旧库也存在（不应覆盖新库）
+        std::fs::write(dir.join(LEGACY_DB_NAME), b"old").unwrap();
+
+        migrate_legacy_db_in_dir(dir).unwrap();
+
+        // 新库内容保留、旧库仍在（未迁移）
+        let count: i64 = Connection::open(dir.join(DB_NAME))
+            .unwrap()
+            .query_row("SELECT COUNT(*) FROM tasks", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(count, 1);
+        assert!(dir.join(LEGACY_DB_NAME).exists());
     }
 }

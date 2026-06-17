@@ -1,7 +1,7 @@
 {
   "name": "pomodoro-cat-tauri",
   "private": true,
-  "version": "2.2.1",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

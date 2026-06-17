@@ -1,6 +1,6 @@
 [package]
 name = "pomodorocat"
-version = "2.2.1"
+version = "1.0.0"
 description = "专注猫 - 一款可爱的番茄钟应用"
 authors = ["you"]
 edition = "2021"

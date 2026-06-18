@@ -189,7 +189,7 @@ React Router 嵌套路由，`<App />` 作为侧边栏布局：
 - **端口 1420**: Vite 开发服务器使用严格端口 1420 - 被占用时会失败
 - **中文界面**: 应用界面为中文 (番茄专注猫)
 - **内联样式**: 组件使用内联样式（无 CSS modules 或 styled-components）
-- **无测试**: 项目当前没有测试配置
+- **测试**: 见下方「测试」小节——Vitest（前端）+ cargo test（后端）+ visual-check（视觉截图）
 - **测试模式统计**: 测试模式下记录番茄钟时，记录实际经过时间（1分钟）
 
 ## 开发工作流
@@ -228,6 +228,46 @@ killall Dock
 # 重建 LaunchServices 数据库
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -kill -r -domain local -domain system -domain user
 ```
+
+## 测试 (Testing)
+
+三套测试能力：
+
+| 能力 | 抓什么 | 状态 | 触发命令 |
+|---|---|---|---|
+| **① 单元/逻辑测试** | 时间换算、任务完成、猫咪体重、store 副作用、DB 迁移 | ✅ 已有：前端 29 + 后端 4（以 `npm test` / `cargo test` 实际输出为准） | `npm test` + `cargo test` |
+| **③ 视觉检查** | 5 页 × 边界数据的布局截图 | ✅ 已有：10 场景 | `npm run visual-check` |
+| **② 自动修复** | CI 失败→AI 自动修 | 💤 休眠（代码在但未激活） | 见下「自动修复」小节 |
+
+### 本地触发命令
+```bash
+# 单元测试（改完代码随时跑）
+npm test                    # 全部前端测试（Vitest）
+npm run test:watch          # 监听模式（存文件自动重跑）
+npm run test:coverage       # 带覆盖率报告
+cd src-tauri && cargo test  # 后端测试（Rust）
+
+# 视觉检查（找布局问题时跑，输出到 .visual-check/latest/）
+npm run visual-check
+
+# 类型检查 / lint（顺手）
+npm run build               # tsc 类型检查 + 构建
+cd src-tauri && cargo clippy
+```
+
+### 推荐工作流
+- **每次提交前**：`npm test && cd src-tauri && cargo test && cd .. && npm run build` 全绿再提交。
+- **改 UI 后**：加跑 `npm run visual-check`，肉眼扫 `.visual-check/latest/` 看布局有没有崩。
+- 视觉检查跑前别开 `npm run dev` / `tauri dev`（:1420 要空着）。
+
+### CI
+`.github/workflows/test.yml` 在 push/PR 时自动跑 ①（npm test + cargo test）——**但本地未 push 时 CI 不生效**。push 到 origin 后，每次提 PR 即自动守门。
+
+### 写新测试时的要点
+- **前端 mock 基础设施**在 `src/test/setup.ts`：用 `vi.hoisted` 创建 `invokeMock`，`vi.mock("@tauri-apps/api/core")`；提供 `mockInvoke(handlers)`（命令→值，未注册命令抛错）和 `resetInvokeMock()`，`afterEach` 自动重置。store 测试据此 mock 掉 `invoke()`。
+- **测试文件位置**：`src/**/*.test.ts`（Vitest，node 环境，见 `vitest.config.ts`）。
+- **后端测试**在 `src-tauri/src/db.rs`，用 rusqlite 内存库 + `tempfile` dev-dep。
+- 设计文档：`docs/superpowers/specs/2026-06-18-automated-testing-design.md`（本地，gitignored）。
 
 ## 视觉检查 (Visual Check)
 

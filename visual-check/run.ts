@@ -34,11 +34,23 @@ async function main() {
       const fixture = { ...baseFixture, ...s.fixture }; // 场景 override 优先
       const page = await context.newPage();
 
-      // 注入 invoke mock（必须在页面脚本前；addInitScript 序列化 fixture 进页面）
+      // 注入 invoke mock（必须在页面脚本前；addInitScript 序列化 fixture 进页面）。
+      // 除 invoke 外，@tauri-apps/api/core 还会读 transformCallback / unregisterCallback /
+      // convertFileSrc（事件监听/资源 URL 用），mount 时若缺失会抛 "transformCallback is not a
+      // function" 并打断渲染。这里一并给最小桩。
       await page.addInitScript((fx) => {
+        let cbId = 0;
         (window as unknown as { __TAURI_INTERNALS__: unknown }).__TAURI_INTERNALS__ = {
           invoke: (cmd: string): unknown =>
             Promise.resolve(cmd in fx ? (fx as Record<string, unknown>)[cmd] : null),
+          transformCallback: (): number => ++cbId,
+          unregisterCallback: (): void => {},
+          convertFileSrc: (p: string): string => p,
+        };
+        // event 插件用单独的全局；GlobalTimer 的 listen() 会触达，缺失则报
+        // "Cannot read properties of undefined (reading 'unregisterListener')"。
+        (window as unknown as { __TAURI_EVENT_PLUGIN_INTERNALS__: unknown }).__TAURI_EVENT_PLUGIN_INTERNALS__ = {
+          unregisterListener: (): void => {},
         };
       }, fixture);
 

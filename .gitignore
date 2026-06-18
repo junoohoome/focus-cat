@@ -45,5 +45,8 @@ Thumbs.db
 # Docs
 docs/
 
+# Visual check screenshots (local artifacts)
+.visual-check/
+
 # AI tools
 .superpowers/

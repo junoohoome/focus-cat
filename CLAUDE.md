@@ -22,6 +22,7 @@ npm run tauri dev    # 启动 Tauri 开发模式 (同时运行前端和 Rust)
 npm run build        # TypeScript 检查 + Vite 生产构建
 npm run tauri build  # 构建生产版 Tauri 应用包
 npm run preview      # 预览生产版 Vite 构建
+npm run visual-check   # 截图视觉检查：驱动 5 页边界场景截图到 .visual-check/，再叫 Claude 分析
 ```
 
 ### PATH 设置 (Tauri 必需)
@@ -227,3 +228,12 @@ killall Dock
 # 重建 LaunchServices 数据库
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -kill -r -domain local -domain system -domain user
 ```
+
+## 视觉检查 (Visual Check)
+
+`npm run visual-check` 用 Playwright 对 5 个页面在边界数据下逐场景截图（输出到 `.visual-check/latest/`，gitignored）。视觉分析不自动化——跑完后请 Claude `Read` 截图 + `manifest.md`，产出布局问题清单（溢出/重叠/裁剪/对比度）。
+
+- 首次使用需 `npx playwright install chromium`
+- 边界场景在 `visual-check/scenarios.ts` 维护（场景清单驱动）
+- 跑前确保 :1420 未被占用
+- 通过 `addInitScript` 注入 `window.__TAURI_INTERNALS__.invoke` mock + `__TAURI_EVENT_PLUGIN_INTERNALS__` 桩，返回 `visual-check/fixtures.ts` 的边界数据

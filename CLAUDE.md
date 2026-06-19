@@ -22,7 +22,6 @@ npm run tauri dev    # 启动 Tauri 开发模式 (同时运行前端和 Rust)
 npm run build        # TypeScript 检查 + Vite 生产构建
 npm run tauri build  # 构建生产版 Tauri 应用包
 npm run preview      # 预览生产版 Vite 构建
-npm run visual-check   # 截图视觉检查：驱动 5 页边界场景截图到 .visual-check/，再叫 Claude 分析
 ```
 
 ### PATH 设置 (Tauri 必需)
@@ -189,7 +188,7 @@ React Router 嵌套路由，`<App />` 作为侧边栏布局：
 - **端口 1420**: Vite 开发服务器使用严格端口 1420 - 被占用时会失败
 - **中文界面**: 应用界面为中文 (番茄专注猫)
 - **内联样式**: 组件使用内联样式（无 CSS modules 或 styled-components）
-- **测试**: 见下方「测试」小节——Vitest（前端）+ cargo test（后端）+ visual-check（视觉截图）
+- **测试**: 见下方「测试」小节——Vitest（前端）+ cargo test（后端）
 - **测试模式统计**: 测试模式下记录番茄钟时，记录实际经过时间（1分钟）
 
 ## 开发工作流
@@ -231,13 +230,11 @@ killall Dock
 
 ## 测试 (Testing)
 
-三套测试能力：
+测试能力：单元/逻辑测试（visual-check 截图检查与 CI autofix 已于 2026-06-19 退役，需要时从 git 历史恢复）。
 
 | 能力 | 抓什么 | 状态 | 触发命令 |
 |---|---|---|---|
-| **① 单元/逻辑测试** | 时间换算、任务完成、猫咪体重、store 副作用、DB 迁移 | ✅ 已有：前端 29 + 后端 4（以 `npm test` / `cargo test` 实际输出为准） | `npm test` + `cargo test` |
-| **③ 视觉检查** | 5 页 × 边界数据的布局截图 | ✅ 已有：10 场景 | `npm run visual-check` |
-| **② 自动修复** | CI 失败→AI 自动修 | 💤 休眠（代码在但未激活） | 见下「自动修复」小节 |
+| 单元/逻辑测试 | 时间换算、任务完成、猫咪体重、store 副作用、DB 迁移 | ✅ 已有：前端 47 + 后端 4（以 `npm test` / `cargo test` 实际输出为准） | `npm test` + `cargo test` |
 
 ### 本地触发命令
 ```bash
@@ -247,9 +244,6 @@ npm run test:watch          # 监听模式（存文件自动重跑）
 npm run test:coverage       # 带覆盖率报告
 cd src-tauri && cargo test  # 后端测试（Rust）
 
-# 视觉检查（找布局问题时跑，输出到 .visual-check/latest/）
-npm run visual-check
-
 # 类型检查 / lint（顺手）
 npm run build               # tsc 类型检查 + 构建
 cd src-tauri && cargo clippy
@@ -257,34 +251,13 @@ cd src-tauri && cargo clippy
 
 ### 推荐工作流
 - **每次提交前**：`npm test && cd src-tauri && cargo test && cd .. && npm run build` 全绿再提交。
-- **改 UI 后**：加跑 `npm run visual-check`，肉眼扫 `.visual-check/latest/` 看布局有没有崩。
-- 视觉检查跑前别开 `npm run dev` / `tauri dev`（:1420 要空着）。
+- **改 UI 后**：本地 `npm run dev` 肉眼看一眼布局有没有崩。
 
 ### CI
-`.github/workflows/test.yml` 在 push/PR 时自动跑 ①（npm test + cargo test）——**但本地未 push 时 CI 不生效**。push 到 origin 后，每次提 PR 即自动守门。
+`.github/workflows/test.yml` 在 push/PR 时自动跑 npm test + cargo test——**但本地未 push 时 CI 不生效**。push 到 origin 后，每次提 PR 即自动守门。
 
 ### 写新测试时的要点
 - **前端 mock 基础设施**在 `src/test/setup.ts`：用 `vi.hoisted` 创建 `invokeMock`，`vi.mock("@tauri-apps/api/core")`；提供 `mockInvoke(handlers)`（命令→值，未注册命令抛错）和 `resetInvokeMock()`，`afterEach` 自动重置。store 测试据此 mock 掉 `invoke()`。
 - **测试文件位置**：`src/**/*.test.ts`（Vitest，node 环境，见 `vitest.config.ts`）。
 - **后端测试**在 `src-tauri/src/db.rs`，用 rusqlite 内存库 + `tempfile` dev-dep。
 - 设计文档：`docs/superpowers/specs/2026-06-18-automated-testing-design.md`（本地，gitignored）。
-
-## 视觉检查 (Visual Check)
-
-`npm run visual-check` 用 Playwright 对 5 个页面在边界数据下逐场景截图（输出到 `.visual-check/latest/`，gitignored）。视觉分析不自动化——跑完后请 Claude `Read` 截图 + `manifest.md`，产出布局问题清单（溢出/重叠/裁剪/对比度）。
-
-- 首次使用需 `npx playwright install chromium`
-- 边界场景在 `visual-check/scenarios.ts` 维护（场景清单驱动）
-- 跑前确保 :1420 未被占用
-- 通过 `addInitScript` 注入 `window.__TAURI_INTERNALS__.invoke` mock + `__TAURI_EVENT_PLUGIN_INTERNALS__` 桩，返回 `visual-check/fixtures.ts` 的边界数据
-- 注意：本环境里 Claude `Read` 截图走 CDN 上传（不内联），CDN 激进去重会喂旧/错图，分析不可靠；要可靠分析请把截图直接贴进对话，或改用脚本内调视觉 API（base64）
-
-## 自动修复 (CI Auto-fix)
-
-`.github/workflows/test.yml` 里的 `autofix` job：PR 上 `npm test` 或 `cargo test` 失败时，自动触发 [`anthropics/claude-code-action`](https://github.com/anthropics/claude-code-action) 尝试【最小修复】并提交回 PR 分支；修不了会在 PR 留评论。人审 PR 合并为唯一闸门（不合并不强制）。
-
-**激活前提（缺一不可）：**
-1. push 到 origin（CI 工作流必须在 GitHub 上才会跑）。
-2. repo **Settings → Secrets and variables → Actions → New repository secret**：`ANTHROPIC_API_KEY`。
-
-**约束：** prompt 限定最小改动、不改测试断言、`--max-turns 30` 兜底；只在 `pull_request` 失败时触发（push 到 main 不自动修）。每次失败触发一次 Claude 运行（API 费用）。
